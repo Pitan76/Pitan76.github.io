@@ -63,7 +63,7 @@
                         <th class="p-3">関数名</th>
                         <th class="p-3">グラフ</th>
                         <th class="p-3">数式</th>
-                        <th class="p-3">特徴・すごいところ</th>
+                        <th class="p-3">特徴</th>
                         <th class="p-3">主な用途</th>
                     </tr>
                 </thead>
@@ -83,7 +83,7 @@
                         <td class="p-3"><canvas id="reluChart"></canvas></td>
                         <td class="p-3 formula">$f(x) = \max(0, x)$</td>
                         <td class="p-3">計算が非常に高速で、勾配消失問題を起きにくくしたことで深層学習の発展を加速させました。現在の標準的な選択肢です。</td>
-                        <td class="p-3">深層学習モデルの中間層。</td>
+                        <td class="p-3">深層学習モデルの中間層</td>
                     </tr>
 
                     <!-- Leaky ReLU Function -->
@@ -92,7 +92,7 @@
                         <td class="p-3"><canvas id="leakyReluChart"></canvas></td>
                         <td class="p-3 formula">$f(x) = \begin{cases} x & \text{if } x \ge 0 \\ 0.01x & \text{if } x < 0 \end{cases}$</td>
                         <td class="p-3">ReLUの派生版。入力が負でもわずかな勾配を持つため、ニューロンが完全に「死んでしまう」のを防ぎます。</td>
-                        <td class="p-3">ReLUで学習がうまくいかない場合の代替案。</td>
+                        <td class="p-3">ReLUで学習がうまくいかない場合の代替案</td>
                     </tr>
                     
                     <!-- Softmax Function -->
@@ -101,7 +101,7 @@
                         <td class="p-3"><canvas id="softmaxChart"></canvas></td>
                         <td class="p-3 formula">$\sigma(\mathbf{z})_j = \frac{e^{z_j}}{\sum_{k=1}^{K} e^{z_k}}$</td>
                         <td class="p-3">複数の出力の合計が1になるように正規化します。これにより、出力をカテゴリごとの「確率分布」として表現できます。（グラフは入力の一つを変化させた時の出力確率）</td>
-                        <td class="p-3">多クラス分類の出力層。</td>
+                        <td class="p-3">多クラス分類の出力層</td>
                     </tr>
 
                     <!-- Softplus Function -->
@@ -110,7 +110,7 @@
                         <td class="p-3"><canvas id="softplusChart"></canvas></td>
                         <td class="p-3 formula">$f(x) = \log(1 + e^x)$</td>
                         <td class="p-3">ReLUを滑らかにしたような関数です。全体で微分可能であり、出力が常に正になるという性質を持ちます。</td>
-                        <td class="p-3">ReLUの代替、出力が必ず正の値を取るようにしたい場合。</td>
+                        <td class="p-3">ReLUの代替、出力が必ず正の値を取るようにしたい場合</td>
                     </tr>
 
                     <!-- Swish Function -->
@@ -119,7 +119,7 @@
                         <td class="p-3"><canvas id="swishChart"></canvas></td>
                         <td class="p-3 formula">$f(x) = x \cdot \sigma(x)$</td>
                         <td class="p-3">Googleが提案した関数。ReLUのように非線形でありながら、負の値も許容する滑らかな曲線を描き、多くの場合でReLUより高い性能を示します。</td>
-                        <td class="p-3">深層学習モデルの中間層（特に画像認識）。</td>
+                        <td class="p-3">深層学習モデルの中間層（特に画像認識）</td>
                     </tr>
 
                     <!-- GELU Function -->
@@ -128,7 +128,7 @@
                         <td class="p-3"><canvas id="geluChart"></canvas></td>
                         <td class="p-3 formula" style="font-size: 0.8rem;">$f(x) \approx 0.5x(1 + \tanh(\sqrt{\frac{2}{\pi}}(x + 0.044715x^3)))$</td>
                         <td class="p-3">確率的なアプローチを取り入れた関数で、入力の大きさに応じて活性化するかどうかを滑らかに決定します。自然言語処理で絶大な成果を上げています。</td>
-                        <td class="p-3">Transformerベースのモデル（BERT, GPTなど）の中間層。</td>
+                        <td class="p-3">Transformerベースのモデル（Gemini、GPTなど）の中間層</td>
                     </tr>
                 </tbody>
             </table>
