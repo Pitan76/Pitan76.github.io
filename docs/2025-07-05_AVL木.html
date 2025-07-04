@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AVL木 可視化ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .control-panel {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            margin-bottom: 1.5rem;
+        }
+        #visualizer-wrapper {
+            position: relative;
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            min-height: 500px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            overflow: auto;
+        }
+        #visualizer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .node {
+            position: absolute;
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: white;
+            background-color: #3b82f6;
+            border: 3px solid #1d4ed8;
+            transition: transform 0.5s ease-in-out, left 0.5s ease-in-out, top 0.5s ease-in-out, background-color 0.3s, border-color 0.3s;
+            transform: translate(-50%, -50%) scale(0);
+            z-index: 10;
+            padding: 5px;
+            text-align: center;
+            overflow-wrap: break-word;
+        }
+        .node.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .node-info {
+            position: absolute;
+            bottom: -20px;
+            font-size: 0.75rem;
+            background-color: rgba(0,0,0,0.6);
+            color: white;
+            padding: 1px 5px;
+            border-radius: 5px;
+            white-space: nowrap;
+        }
+        .node-line {
+            position: absolute;
+            background-color: #6b7280;
+            height: 2px;
+            transform-origin: 0 0;
+            z-index: 5;
+            transition: all 0.5s ease-in-out;
+        }
+        .flying-value {
+            position: absolute;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #ef4444;
+            background: #fef2f2;
+            padding: 5px 10px;
+            border-radius: 50%;
+            z-index: 20;
+            transition: all 0.5s ease-in-out;
+        }
+        /* State Classes */
+        .node.path { background-color: #facc15; border-color: #ca8a04; }
+        .node.unbalanced { background-color: #ef4444; border-color: #b91c1c; animation: pulse 1.2s infinite; }
+        @keyframes pulse { 50% { box-shadow: 0 0 20px #ef4444; } }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 max-w-7xl">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold">AVL木 可視化ツール</h1>
+            <p class="text-gray-600 mt-2 text-lg">自己平衡二分探索木</p>
+        </header>
+
+        <!-- Controls -->
+        <div class="control-panel">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                <div class="md:col-span-2">
+                    <label for="node-value" class="block text-sm font-medium text-gray-700">ノードの値</label>
+                    <div class="mt-1 flex gap-2">
+                        <input type="text" id="node-value" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300" placeholder="値 (数字 or 文字)">
+                        <button id="insert-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors"><i class="fas fa-plus mr-2"></i>挿入</button>
+                        <button id="delete-btn" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition-colors"><i class="fas fa-trash mr-2"></i>削除</button>
+                    </div>
+                </div>
+                <div>
+                    <label for="speed" class="block text-sm font-medium text-gray-700">アニメーション速度</label>
+                    <input id="speed" type="range" min="100" max="1000" value="500" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2">
+                </div>
+            </div>
+             <div class="mt-4 flex gap-2 justify-center">
+                <button id="random-btn" class="px-4 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors"><i class="fas fa-random mr-2"></i>ランダム生成</button>
+                <button id="clear-btn" class="px-4 py-2 bg-gray-600 text-white font-semibold rounded-md hover:bg-gray-700 transition-colors"><i class="fas fa-times mr-2"></i>クリア</button>
+            </div>
+        </div>
+
+        <!-- Visualizer & Explanation -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div id="visualizer-wrapper" class="lg:col-span-2">
+                <div id="visualizer"></div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4 border-b pb-2">アルゴリズム解説</h3>
+                <div id="explanation-area" class="space-y-4">
+                    <p id="explanation-text" class="text-gray-700 text-lg min-h-[5em]">操作を選択してください。</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Legend -->
+        <div class="mt-6 bg-white p-6 rounded-lg shadow-lg">
+            <h3 class="text-2xl font-bold mb-4 border-b pb-2">凡例（仕様）</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="flex items-center">
+                    <div class="node show !relative !scale-100 !transform-none" style="background-color: #3b82f6; border-color: #1d4ed8;"></div>
+                    <span class="ml-4 text-lg">通常ノード</span>
+                </div>
+                 <div class="flex items-center">
+                    <div class="node show !relative !scale-100 !transform-none" style="background-color: #facc15; border-color: #ca8a04;"></div>
+                    <span class="ml-4 text-lg">探索/更新パス</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="node show !relative !scale-100 !transform-none" style="background-color: #ef4444; border-color: #b91c1c;"></div>
+                    <span class="ml-4 text-lg">不均衡ノード</span>
+                </div>
+                 <div class="flex items-center">
+                    <div class="node show !relative !scale-100 !transform-none">
+                        <div class="node-info">h:1 bf:0</div>
+                    </div>
+                    <span class="ml-4 text-lg">高さ / バランス</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+class Node {
+    constructor(value) {
+        this.value = value;
+        this.left = null;
+        this.right = null;
+        this.height = 1;
+        this.id = `node-${Date.now()}-${String(value).replace(/ /g,'')}`;
+        this.element = null;
+    }
+}
+
+class AVLTreeVisualizer {
+    constructor() {
+        this.visualizer = document.getElementById('visualizer');
+        this.insertBtn = document.getElementById('insert-btn');
+        this.deleteBtn = document.getElementById('delete-btn');
+        this.randomBtn = document.getElementById('random-btn');
+        this.clearBtn = document.getElementById('clear-btn');
+        this.nodeInput = document.getElementById('node-value');
+        this.speedSlider = document.getElementById('speed');
+        this.explanationText = document.getElementById('explanation-text');
+
+        this.root = null;
+        this.speed = 500;
+        this.isAnimating = false;
+
+        this.init();
+    }
+
+    init() {
+        this.insertBtn.addEventListener('click', () => this.handleInsert());
+        this.deleteBtn.addEventListener('click', () => this.handleDelete());
+        this.randomBtn.addEventListener('click', () => this.handleRandom());
+        this.clearBtn.addEventListener('click', () => this.handleClear());
+        this.nodeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.handleInsert();
+            }
+        });
+        this.speedSlider.addEventListener('input', (e) => {
+            this.speed = 1100 - parseInt(e.target.value, 10);
+        });
+    }
+
+    parseValue(input) {
+        const trimmed = input.trim();
+        if (trimmed === '') return null;
+        const num = parseFloat(trimmed);
+        // If it's a valid number and converting back to string matches, it's a number.
+        if (!isNaN(num) && String(num) === trimmed) {
+            return num;
+        }
+        return trimmed; // Otherwise, it's a string.
+    }
+
+    async handleInsert() {
+        if (this.isAnimating) return;
+        const value = this.parseValue(this.nodeInput.value);
+        if (value === null) { this.setExplanation('有効な値を入力してください。', true); return; }
+        
+        this.isAnimating = true;
+        this.setExplanation('挿入処理を開始します...');
+        this.root = await this.insert(this.root, value);
+        await this.drawTree();
+        this.setExplanation('処理が完了しました。');
+        this.isAnimating = false;
+        this.nodeInput.value = '';
+        this.nodeInput.focus();
+    }
+    
+    async handleDelete() {
+        if (this.isAnimating) return;
+        const value = this.parseValue(this.nodeInput.value);
+        if (value === null) { this.setExplanation('有効な値を入力してください。', true); return; }
+        
+        this.isAnimating = true;
+        this.setExplanation('削除処理を開始します...');
+        this.root = await this.deleteNode(this.root, value);
+        await this.drawTree();
+        this.setExplanation('処理が完了しました。');
+        this.isAnimating = false;
+        this.nodeInput.value = '';
+        this.nodeInput.focus();
+    }
+
+    async handleRandom() {
+        if (this.isAnimating) return;
+        await this.handleClear();
+        const nodes = new Set();
+        while(nodes.size < 7) {
+            nodes.add(Math.floor(Math.random() * 100) + 1);
+        }
+        this.isAnimating = true;
+        for (const value of Array.from(nodes)) {
+            this.root = await this.insert(this.root, value);
+            await this.drawTree();
+        }
+        this.isAnimating = false;
+    }
+
+    async handleClear() {
+        this.root = null;
+        this.visualizer.innerHTML = '';
+        this.setExplanation('木をクリアしました。');
+    }
+
+    setExplanation(text, highlight = false) {
+        this.explanationText.innerHTML = text;
+        this.explanationText.className = `text-lg transition-all duration-200 ${highlight ? 'text-red-600 font-bold' : 'text-gray-700'}`;
+    }
+
+    async sleep() { await new Promise(resolve => setTimeout(resolve, this.speed)); }
+
+    // --- AVL Tree Core Logic ---
+    compare(a, b) {
+        // Smart comparison: if both are numbers, compare as numbers. Otherwise, as strings.
+        const isANum = typeof a === 'number';
+        const isBNum = typeof b === 'number';
+        if (isANum && isBNum) {
+            if (a < b) return -1;
+            if (a > b) return 1;
+            return 0;
+        }
+        const strA = String(a);
+        const strB = String(b);
+        return strA.localeCompare(strB);
+    }
+
+    getHeight(node) { return node ? node.height : 0; }
+    getBalance(node) { return node ? this.getHeight(node.left) - this.getHeight(node.right) : 0; }
+
+    async rightRotate(y) {
+        this.setExplanation(`右回転 (Right Rotation) をノード '${y.value}' で実行します。`, true);
+        await this.highlightNodes([y, y.left], 'unbalanced');
+        await this.sleep();
+        let x = y.left;
+        y.left = x.right;
+        x.right = y;
+        y.height = 1 + Math.max(this.getHeight(y.left), this.getHeight(y.right));
+        x.height = 1 + Math.max(this.getHeight(x.left), this.getHeight(x.right));
+        return x;
+    }
+
+    async leftRotate(x) {
+        this.setExplanation(`左回転 (Left Rotation) をノード '${x.value}' で実行します。`, true);
+        await this.highlightNodes([x, x.right], 'unbalanced');
+        await this.sleep();
+        let y = x.right;
+        x.right = y.left;
+        y.left = x;
+        x.height = 1 + Math.max(this.getHeight(x.left), this.getHeight(x.right));
+        y.height = 1 + Math.max(this.getHeight(y.left), this.getHeight(y.right));
+        return y;
+    }
+
+    async rebalance(node) {
+        node.height = 1 + Math.max(this.getHeight(node.left), this.getHeight(node.right));
+        let balance = this.getBalance(node);
+        this.setExplanation(`ノード '${node.value}' のバランスをチェック (bf: ${balance})`);
+        await this.drawTree();
+        await this.highlightNodes([node], 'path');
+        if (Math.abs(balance) > 1) {
+            await this.highlightNodes([node], 'unbalanced');
+            await this.sleep();
+        } else {
+            await this.sleep();
+        }
+
+        if (balance > 1) { // Left heavy
+            const leftBalance = this.getBalance(node.left);
+            if (leftBalance >= 0) { // LL Case
+                this.setExplanation(`LL型 (${node.value} -> ${node.left.value})。右回転します。`);
+                return await this.rightRotate(node);
+            } else { // LR Case
+                this.setExplanation(`LR型 (${node.value} -> ${node.left.value})。まず左回転から。`);
+                node.left = await this.leftRotate(node.left);
+                await this.drawTree();
+                return await this.rightRotate(node);
+            }
+        }
+        if (balance < -1) { // Right heavy
+            const rightBalance = this.getBalance(node.right);
+            if (rightBalance <= 0) { // RR Case
+                this.setExplanation(`RR型 (${node.value} -> ${node.right.value})。左回転します。`);
+                return await this.leftRotate(node);
+            } else { // RL Case
+                this.setExplanation(`RL型 (${node.value} -> ${node.right.value})。まず右回転から。`);
+                node.right = await this.rightRotate(node.right);
+                await this.drawTree();
+                return await this.leftRotate(node);
+            }
+        }
+        return node;
+    }
+
+    async insert(node, value) {
+        if (!node) {
+            this.setExplanation(`適切な位置にノード '${value}' を挿入します。`);
+            const newNode = new Node(value);
+            await this.createNodeElement(newNode);
+            await this.sleep();
+            return newNode;
+        }
+        await this.highlightNodes([node], 'path');
+        const comparison = this.compare(value, node.value);
+        if (comparison < 0) {
+            this.setExplanation(`'${value}' < '${node.value}' なので、左へ進みます。`);
+            await this.sleep();
+            node.left = await this.insert(node.left, value);
+        } else if (comparison > 0) {
+            this.setExplanation(`'${value}' > '${node.value}' なので、右へ進みます。`);
+            await this.sleep();
+            node.right = await this.insert(node.right, value);
+        } else {
+            this.setExplanation(`値 '${value}' は既に存在します。`);
+            await this.sleep();
+            return node;
+        }
+        return await this.rebalance(node);
+    }
+
+    async deleteNode(node, value) {
+        if (!node) {
+            this.setExplanation(`値 '${value}' は見つかりませんでした。`, true);
+            await this.sleep();
+            return node;
+        }
+        await this.highlightNodes([node], 'path');
+        const comparison = this.compare(value, node.value);
+        if (comparison < 0) {
+            this.setExplanation(`'${value}' < '${node.value}' なので、左を探索します。`);
+            await this.sleep();
+            node.left = await this.deleteNode(node.left, value);
+        } else if (comparison > 0) {
+            this.setExplanation(`'${value}' > '${node.value}' なので、右を探索します。`);
+            await this.sleep();
+            node.right = await this.deleteNode(node.right, value);
+        } else {
+            this.setExplanation(`ノード '${value}' を発見。削除します。`);
+            await this.highlightNodes([node], 'unbalanced');
+            await this.sleep();
+
+            if (!node.left || !node.right) {
+                let temp = node.left ? node.left : node.right;
+                if (!temp) {
+                    node.element.remove();
+                    node = null;
+                } else {
+                    node.element.remove();
+                    node = temp;
+                }
+            } else {
+                let temp = await this.minValueNode(node.right);
+                await this.animateValueTransfer(temp, node);
+                node.value = temp.value;
+                node.right = await this.deleteNode(node.right, temp.value);
+            }
+        }
+        if (!node) return node;
+        return await this.rebalance(node);
+    }
+    
+    async minValueNode(node) {
+        let current = node;
+        while (current.left) {
+            await this.highlightNodes([current], 'path');
+            this.setExplanation(`後継ノードを探しています...`);
+            await this.sleep();
+            current = current.left;
+        }
+        this.setExplanation(`後継ノード '${current.value}' を発見しました。`);
+        await this.highlightNodes([current], 'unbalanced');
+        await this.sleep();
+        return current;
+    }
+
+    // --- Visualization ---
+    async createNodeElement(node) {
+        const nodeEl = document.createElement('div');
+        nodeEl.id = node.id;
+        nodeEl.className = 'node';
+        nodeEl.textContent = node.value;
+        const infoEl = document.createElement('div');
+        infoEl.className = 'node-info';
+        nodeEl.appendChild(infoEl);
+        node.element = nodeEl;
+        this.visualizer.appendChild(nodeEl);
+        await new Promise(r => setTimeout(r, 50));
+        nodeEl.classList.add('show');
+    }
+
+    async drawTree(node = this.root, x = 0, y = 0, level = 1, dx = 0) {
+        if (!node) return;
+        
+        if (level === 1) {
+            this.visualizer.querySelectorAll('.node-line').forEach(l => l.remove());
+            const containerWidth = this.visualizer.offsetWidth;
+            x = containerWidth / 2;
+            y = 50;
+            dx = Math.min(containerWidth / 4, 150);
+        }
+
+        if(node.element) {
+            node.element.style.left = `${x}px`;
+            node.element.style.top = `${y}px`;
+            node.element.querySelector('.node-info').textContent = `h:${this.getHeight(node)} bf:${this.getBalance(node)}`;
+        }
+
+        if (node.left) {
+            const childX = x - dx;
+            const childY = y + 80;
+            this.drawLine(x, y, childX, childY);
+            await this.drawTree(node.left, childX, childY, level + 1, dx / 2);
+        }
+        if (node.right) {
+            const childX = x + dx;
+            const childY = y + 80;
+            this.drawLine(x, y, childX, childY);
+            await this.drawTree(node.right, childX, childY, level + 1, dx / 2);
+        }
+    }
+    
+    drawLine(x1, y1, x2, y2) {
+        const line = document.createElement('div');
+        line.className = 'node-line';
+        const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        line.style.width = `${length}px`;
+        line.style.left = `${x1}px`;
+        line.style.top = `${y1}px`;
+        line.style.transform = `rotate(${angle}deg)`;
+        this.visualizer.appendChild(line);
+    }
+    
+    async highlightNodes(nodes, className) {
+        this.visualizer.querySelectorAll('.node').forEach(el => {
+            el.classList.remove('path', 'unbalanced');
+        });
+        nodes.forEach(node => {
+            if(node && node.element) {
+                node.element.classList.add(className);
+            }
+        });
+    }
+
+    async animateValueTransfer(fromNode, toNode) {
+        const fromRect = fromNode.element.getBoundingClientRect();
+        const toRect = toNode.element.getBoundingClientRect();
+        
+        const flyingEl = document.createElement('div');
+        flyingEl.className = 'flying-value';
+        flyingEl.textContent = fromNode.value;
+        flyingEl.style.left = `${fromRect.left}px`;
+        flyingEl.style.top = `${fromRect.top}px`;
+        document.body.appendChild(flyingEl);
+        
+        await new Promise(r => setTimeout(r, 50));
+        
+        flyingEl.style.left = `${toRect.left}px`;
+        flyingEl.style.top = `${toRect.top}px`;
+        flyingEl.style.opacity = '0';
+        
+        await this.sleep();
+        toNode.element.textContent = fromNode.value;
+        const infoEl = document.createElement('div');
+        infoEl.className = 'node-info';
+        toNode.element.appendChild(infoEl);
+        
+        flyingEl.remove();
+    }
+}
+
+new AVLTreeVisualizer();
+</script>
+</body>
+</html>
