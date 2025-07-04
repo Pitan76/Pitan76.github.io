@@ -67,11 +67,11 @@
             z-index: 10;
         }
         .neuron.input { background-color: #93c5fd; border-color: #3b82f6; }
-        .neuron.hidden { background-color: #a78bfa; border-color: #7c3aed; }
+        .neuron.middle { background-color: #fde047; border-color: #eab308; } /* Yellow */
         .neuron.output { background-color: #6ee7b7; border-color: #059669; }
         .neuron.activated {
             box-shadow: 0 0 20px #fde047;
-            background-color: #fef08a;
+            background-color: #fef9c3; /* Lighter yellow for activated state */
             border-color: #facc15;
             transform: translate(-50%, -50%) scale(1.1);
         }
@@ -237,8 +237,6 @@ class NNVisualizer {
 
     removeHiddenLayer(layerId) {
         document.getElementById(`hidden-layer-group-${layerId}`).remove();
-        // This simple removal doesn't re-number layers, but it's fine for this visualizer's purpose.
-        // For a more robust app, re-numbering would be needed.
     }
 
     setExplanation(text, highlight = false) {
@@ -268,7 +266,6 @@ class NNVisualizer {
 
         const layerSpacing = this.visualizer.offsetWidth / (layerDefinitions.length + 1);
 
-        // Create neurons and layer boxes
         layerDefinitions.forEach((layerDef, layerIndex) => {
             const layer = [];
             const x = layerSpacing * (layerIndex + 1);
@@ -303,7 +300,6 @@ class NNVisualizer {
             this.layers.push(layer);
         });
 
-        // Create connections
         for (let i = 0; i < this.layers.length - 1; i++) {
             for (const fromNode of this.layers[i]) {
                 for (const toNode of this.layers[i + 1]) {
@@ -321,7 +317,16 @@ class NNVisualizer {
     createNeuronElement(neuron) {
         const el = document.createElement('div');
         el.id = neuron.id;
-        el.className = `neuron ${neuron.type}`;
+        // BUG FIX: Rewrote class assignment to be more explicit and robust.
+        let classes = 'neuron';
+        if (neuron.type === 'input') {
+            classes += ' input';
+        } else if (neuron.type === 'hidden') {
+            classes += ' middle';
+        } else if (neuron.type === 'output') {
+            classes += ' output';
+        }
+        el.className = classes;
         el.style.left = `${neuron.x}px`;
         el.style.top = `${neuron.y}px`;
         el.textContent = neuron.id;
@@ -334,18 +339,30 @@ class NNVisualizer {
         line.className = 'connection';
         const from = connection.from;
         const to = connection.to;
-        const length = Math.sqrt((to.x - from.x) ** 2 + (to.y - from.y) ** 2);
-        const angle = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
-        line.style.width = `${length}px`;
-        line.style.left = `${from.x}px`;
-        line.style.top = `${from.y}px`;
-        line.style.transform = `rotate(${angle}deg)`;
+        const nodeRadius = 25; // Half of neuron's width
+
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const angleRad = Math.atan2(dy, dx);
+        const angleDeg = angleRad * 180 / Math.PI;
+        const totalLength = Math.sqrt(dx * dx + dy * dy);
+        
+        const lineLength = totalLength - (nodeRadius * 2);
+
+        const startX = from.x + nodeRadius * Math.cos(angleRad);
+        const startY = from.y + nodeRadius * Math.sin(angleRad);
+
+        line.style.width = `${lineLength}px`;
+        line.style.left = `${startX}px`;
+        line.style.top = `${startY}px`;
+        line.style.transform = `rotate(${angleDeg}deg)`;
         connection.element = line;
         this.visualizer.insertBefore(line, this.visualizer.firstChild);
     }
 
     buildInputSliders() {
         this.inputSlidersContainer.innerHTML = '<h3 class="text-xl font-bold text-center">入力値の設定</h3>';
+        if (!this.layers[0]) return;
         const inputLayer = this.layers[0];
         inputLayer.forEach(neuron => {
             const sliderWrapper = document.createElement('div');
@@ -382,7 +399,6 @@ class NNVisualizer {
         this.propagateBtn.disabled = true;
         this.buildBtn.disabled = true;
 
-        // Reset states
         this.layers.forEach(layer => layer.forEach(n => {
             n.activated = false;
             n.element.classList.remove('activated');
@@ -409,13 +425,13 @@ class NNVisualizer {
                         const connection = this.connections.find(c => c.from === fromNode && c.to === toNode);
                         if (connection) {
                             connection.element.classList.add('pulsing');
-                            weightedSum += fromNode.value * (Math.random() * 2 - 1); // Simplified random weight
+                            weightedSum += fromNode.value * (Math.random() * 2 - 1);
                         }
                     }
                 }
                 await this.sleep();
 
-                toNode.activated = weightedSum > 0.5; // Simplified threshold
+                toNode.activated = weightedSum > 0.5;
                 toNode.value = weightedSum;
                 
                 if (toNode.activated) {
@@ -442,6 +458,3 @@ new NNVisualizer();
 </script>
 </body>
 </html>
-```
-
-I made some changes. `buildNetwork`関数内で未定義の変数`y`を参照していたエラーを修正しました。これにより、ネットワークが正しく構築されるようになり
