@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>逆ポーランド記法 可視化ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            overflow-x: hidden;
+        }
+        .token {
+            transition: all 0.3s ease-in-out;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            background-color: #fff;
+            border: 1px solid #d1d5db;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            font-weight: bold;
+        }
+        .token.active {
+            transform: scale(1.1);
+            background-color: #3b82f6;
+            color: white;
+            border-color: #2563eb;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            50% { opacity: .7; }
+        }
+        #stack-container {
+            display: flex;
+            flex-direction: column-reverse;
+            justify-content: flex-start;
+            align-items: center;
+            width: 120px;
+            min-height: 180px; /* Changed from fixed height */
+            background: linear-gradient(to bottom, #f9fafb, #e5e7eb);
+            border: 3px solid #9ca3af;
+            border-top: none;
+            border-bottom-left-radius: 25px;
+            border-bottom-right-radius: 25px;
+            padding: 0.5rem;
+            margin: 0 auto;
+            transition: min-height 0.3s ease-in-out;
+        }
+        .stack-item {
+            width: 80px;
+            text-align: center;
+            margin-top: 5px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: push 0.5s forwards;
+            background-color: #60a5fa;
+            color: white;
+        }
+        .stack-item.pop {
+            animation: pop 0.3s forwards ease-in;
+        }
+        @keyframes push {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pop {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-30px); }
+        }
+        .animation-token {
+            position: fixed;
+            z-index: 999;
+            transition: all 0.7s cubic-bezier(0.5, 0, 0.5, 1);
+            background-color: #60a5fa;
+            color: white;
+        }
+        #operation-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            min-height: 100px;
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #374151;
+        }
+        @media (min-width: 768px) {
+            #operation-display {
+                font-size: 1.5rem;
+            }
+        }
+        #tree-container {
+            position: relative;
+            width: 100%;
+            min-height: 180px; /* Changed for consistency */
+            border: 2px dashed #d1d5db;
+            border-radius: 0.5rem;
+            background-color: #f9fafb;
+            overflow: auto; /* Enable scrolling */
+        }
+        #tree-nodes {
+            position: relative;
+        }
+        .tree-node {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: white;
+            transition: all 0.5s ease-in-out;
+            transform: translate(-50%, -50%) scale(0);
+            animation: pop-in 0.5s forwards;
+        }
+        @keyframes pop-in {
+            to { transform: translate(-50%, -50%) scale(1); }
+        }
+        .tree-node.operand { background-color: #10b981; }
+        .tree-node.operator { background-color: #ef4444; }
+        #tree-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            overflow: visible;
+        }
+        .tree-line {
+            stroke: #6b7280;
+            stroke-width: 2;
+            transition: all 0.5s ease-in-out;
+        }
+        .tab-button {
+            transition: all 0.2s ease-in-out;
+            border-bottom: 3px solid transparent;
+        }
+        .tab-button.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-2 sm:p-4 max-w-6xl">
+        <header class="text-center mb-4 sm:mb-6">
+            <h1 class="text-2xl sm:text-3xl font-bold">逆ポーランド記法 可視化ツール</h1>
+            <p class="text-gray-600 mt-2 text-sm sm:text-base">スタックと二分木のアニメーションで式の評価プロセスを学習します。</p>
+        </header>
+
+        <div class="bg-white p-4 sm:p-6 rounded-lg shadow-lg mb-4 sm:mb-6">
+            <h2 class="text-xl font-semibold mb-3">コントロールパネル</h2>
+            <div class="flex flex-wrap items-center gap-2 sm:gap-4">
+                <input type="text" id="rpn-input" class="flex-grow p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none" value="3 4 + 2 * 7 /">
+                <button id="start-btn" class="px-3 py-2 sm:px-4 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors">開始</button>
+                <button id="prev-btn" class="px-3 py-2 sm:px-4 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition-colors" disabled>戻る</button>
+                <button id="next-btn" class="px-3 py-2 sm:px-4 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors" disabled>次へ</button>
+                <button id="reset-btn" class="px-3 py-2 sm:px-4 bg-gray-600 text-white font-semibold rounded-md hover:bg-gray-700 transition-colors">リセット</button>
+            </div>
+            <div id="error-message" class="text-red-500 mt-3 font-semibold"></div>
+        </div>
+
+        <div id="expression-view" class="flex justify-center items-center flex-wrap gap-2 mb-4 sm:mb-6 p-2 sm:p-4 bg-gray-50 rounded-lg min-h-[60px]"></div>
+        
+        <!-- Main Visual Area -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-4 sm:mb-6">
+            <!-- Left Panel (Stack on Desktop) -->
+            <div id="stack-panel" class="tab-panel bg-white p-4 sm:p-6 rounded-lg shadow-lg">
+                <h3 class="text-xl font-semibold mb-4 text-center">スタック</h3>
+                <div id="stack-container"></div>
+            </div>
+
+            <!-- Middle Panel (Operation Area on Desktop) -->
+            <div id="operation-panel-desktop" class="bg-white p-4 sm:p-6 rounded-lg shadow-lg flex-col justify-center hidden md:flex">
+                <h3 class="text-xl font-semibold mb-4 text-center">演算エリア</h3>
+                <div id="operation-display-desktop" class="operation-display"></div>
+            </div>
+
+            <!-- Right Panel (Tree on Desktop) -->
+            <div id="tree-panel" class="tab-panel bg-white p-4 sm:p-6 rounded-lg shadow-lg">
+                <h3 class="text-xl font-semibold mb-4 text-center">二分木</h3>
+                <div id="tree-container">
+                    <svg id="tree-svg"></svg>
+                    <div id="tree-nodes"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile-only Operation Area & Tabs -->
+        <div class="md:hidden mb-4">
+            <div class="bg-white p-4 rounded-lg shadow-lg flex-col justify-center mb-4">
+                <h3 class="text-xl font-semibold mb-4 text-center">演算エリア</h3>
+                <div id="operation-display-mobile" class="operation-display"></div>
+            </div>
+            <div id="tab-buttons" class="flex border-b border-gray-200">
+                <button data-tab="stack-panel" class="tab-button flex-1 py-2 text-center text-gray-600">スタック</button>
+                <button data-tab="tree-panel" class="tab-button flex-1 py-2 text-center text-gray-600">二分木</button>
+            </div>
+        </div>
+
+
+        <div class="bg-white p-4 sm:p-6 rounded-lg shadow-lg">
+            <h3 class="text-xl font-semibold mb-2">実行状況</h3>
+            <p id="explanation-text" class="text-gray-700 min-h-[2.5em]">逆ポーランド記法の式を入力し、「開始」ボタンを押してください。</p>
+            <p id="result-text" class="text-lg font-bold mt-2 text-blue-600"></p>
+        </div>
+    </div>
+
+<script>
+const RPNVisualizer = {
+    // DOM Elements
+    rpnInput: null, startBtn: null, nextBtn: null, prevBtn: null, resetBtn: null,
+    expressionView: null, stackContainer: null, treeNodesContainer: null, treeSvg: null,
+    opDisplayDesktop: null, opDisplayMobile: null,
+    explanationText: null, resultText: null, errorMessage: null,
+    tabButtons: null, tabPanels: null,
+
+    // State
+    tokens: [], tokenElements: [], stack: [], treeStack: [],
+    step: 0, nodeCounter: 0, history: [],
+
+    // Constants
+    NODE_WIDTH: 50, NODE_HEIGHT: 50, LEVEL_HEIGHT: 80,
+    
+    init() {
+        // DOM Elements
+        this.rpnInput = document.getElementById('rpn-input');
+        this.startBtn = document.getElementById('start-btn');
+        this.nextBtn = document.getElementById('next-btn');
+        this.prevBtn = document.getElementById('prev-btn');
+        this.resetBtn = document.getElementById('reset-btn');
+        this.expressionView = document.getElementById('expression-view');
+        this.stackContainer = document.getElementById('stack-container');
+        this.treeNodesContainer = document.getElementById('tree-nodes');
+        this.treeSvg = document.getElementById('tree-svg');
+        this.opDisplayDesktop = document.getElementById('operation-display-desktop');
+        this.opDisplayMobile = document.getElementById('operation-display-mobile');
+        this.explanationText = document.getElementById('explanation-text');
+        this.resultText = document.getElementById('result-text');
+        this.errorMessage = document.getElementById('error-message');
+        this.tabButtons = document.querySelectorAll('.tab-button');
+        this.tabPanels = document.querySelectorAll('.tab-panel');
+
+        // Event Listeners
+        this.startBtn.addEventListener('click', () => this.start());
+        this.nextBtn.addEventListener('click', () => this.nextStep());
+        this.prevBtn.addEventListener('click', () => this.previousStep());
+        this.resetBtn.addEventListener('click', () => this.reset());
+        this.tabButtons.forEach(button => {
+            button.addEventListener('click', () => this.showTab(button.dataset.tab));
+        });
+
+        this.reset();
+        this.handleResize();
+        window.addEventListener('resize', () => this.handleResize());
+    },
+
+    handleResize() {
+        if (window.innerWidth >= 768) {
+            // Desktop view: show all panels
+            this.tabPanels.forEach(panel => panel.classList.remove('hidden'));
+        } else {
+            // Mobile view: activate tab logic
+            const activeTab = document.querySelector('.tab-button.active')?.dataset.tab || 'stack-panel';
+            this.showTab(activeTab);
+        }
+    },
+
+    showTab(tabId) {
+        if (window.innerWidth >= 768) return;
+
+        this.tabButtons.forEach(button => {
+            button.classList.toggle('active', button.dataset.tab === tabId);
+        });
+        this.tabPanels.forEach(panel => {
+            // The operation panel is never a tab, so it's not handled here.
+            if (panel.id === 'stack-panel' || panel.id === 'tree-panel') {
+                panel.classList.toggle('hidden', panel.id !== tabId);
+            }
+        });
+    },
+
+    reset() {
+        this.tokens = []; this.tokenElements = []; this.stack = [];
+        this.treeStack = []; this.step = 0; this.nodeCounter = 0; this.history = [];
+
+        this.expressionView.innerHTML = ''; this.stackContainer.innerHTML = '';
+        this.treeNodesContainer.innerHTML = ''; this.treeSvg.innerHTML = '';
+        this.opDisplayDesktop.innerHTML = ''; this.opDisplayMobile.innerHTML = '';
+        this.explanationText.textContent = '逆ポーランド記法の式を入力し、「開始」ボタンを押してください。';
+        this.resultText.textContent = ''; this.errorMessage.textContent = '';
+        
+        this.startBtn.disabled = false; this.nextBtn.disabled = true;
+        this.prevBtn.disabled = true; this.rpnInput.disabled = false;
+        document.querySelectorAll('.token.active').forEach(el => el.classList.remove('active'));
+
+        this.handleResize();
+    },
+
+    start() {
+        this.reset();
+        const expression = this.rpnInput.value.trim();
+        if (!expression) { this.showError("式を入力してください。"); return; }
+        
+        this.tokens = expression.split(/\s+/).filter(t => t !== '');
+        
+        this.tokens.forEach(token => {
+            const el = document.createElement('div');
+            el.className = 'token'; el.textContent = token;
+            this.expressionView.appendChild(el); this.tokenElements.push(el);
+        });
+
+        this.startBtn.disabled = true; this.nextBtn.disabled = false;
+        this.rpnInput.disabled = true;
+        this.explanationText.textContent = '準備完了。「次へ」または「戻る」ボタンでステップを開始します。';
+        this.saveState();
+        this.showTab('stack-panel');
+    },
+
+    saveState() {
+        this.history.push({
+            stack: JSON.parse(JSON.stringify(this.stack)),
+            treeStack: JSON.parse(JSON.stringify(this.treeStack)),
+            step: this.step,
+            nodeCounter: this.nodeCounter,
+            explanation: this.explanationText.textContent,
+        });
+    },
+
+    async previousStep() {
+        if (this.history.length <= 1) return;
+        this.history.pop();
+        const prevState = this.history[this.history.length - 1];
+
+        this.stack = JSON.parse(JSON.stringify(prevState.stack));
+        this.treeStack = JSON.parse(JSON.stringify(prevState.treeStack));
+        this.step = prevState.step;
+        this.nodeCounter = prevState.nodeCounter;
+        this.explanationText.textContent = prevState.explanation;
+        this.resultText.textContent = '';
+        this.opDisplayDesktop.innerHTML = ''; this.opDisplayMobile.innerHTML = '';
+
+        this.updateUI();
+        this.nextBtn.disabled = false;
+        if (this.history.length <= 1) {
+            this.prevBtn.disabled = true;
+        }
+        this.showTab('stack-panel');
+    },
+
+    updateUI() {
+        this.tokenElements.forEach((el, index) => {
+            el.classList.toggle('active', index === this.step);
+        });
+        this.renderStack();
+        this.renderTree();
+    },
+
+    showError(message) {
+        this.errorMessage.textContent = message;
+        this.reset();
+    },
+
+    async nextStep() {
+        if (this.step >= this.tokens.length) return;
+        
+        this.nextBtn.disabled = true; this.prevBtn.disabled = true;
+        this.saveState();
+
+        const token = this.tokens[this.step];
+        const tokenEl = this.tokenElements[this.step];
+        this.updateUI();
+
+        if (this.isNumber(token)) {
+            this.showTab('stack-panel');
+            const value = parseFloat(token);
+            this.explanationText.textContent = `トークン "${token}" は数値です。スタックにプッシュします。`;
+            
+            await this.animateTokenMovement(tokenEl, this.stackContainer, value);
+            
+            this.stack.push(value);
+            const treeNode = { id: `node-${this.nodeCounter++}`, value: value, isOperand: true, children: [], x: 0, y: 0, width: 0 };
+            this.treeStack.push(treeNode);
+            this.renderStack();
+            
+        } else if (this.isOperator(token)) {
+            if (this.stack.length < 2) { this.showError("エラー: 演算子に対してオペランドが不足しています。"); return; }
+            this.explanationText.textContent = `トークン "${token}" は演算子です。スタックから2つの値を取り出します。`;
+            
+            const rightVal = this.stack[this.stack.length - 1];
+            const leftVal = this.stack[this.stack.length - 2];
+            
+            await this.animateOperation(token, leftVal, rightVal);
+
+            this.stack.pop();
+            this.stack.pop();
+            const rightNode = this.treeStack.pop();
+            const leftNode = this.treeStack.pop();
+
+            let result;
+            switch (token) {
+                case '+': result = leftVal + rightVal; break;
+                case '-': result = leftVal - rightVal; break;
+                case '*': result = leftVal * rightVal; break;
+                case '/': 
+                    if (rightVal === 0) { this.showError("エラー: 0による除算はできません。"); return; }
+                    result = leftVal / rightVal; break;
+                default: this.showError(`エラー: 未知の演算子 "${token}" です。`); return;
+            }
+            
+            this.explanationText.textContent = `計算結果 ${result.toFixed(2)} をスタックにプッシュします。`;
+            this.showTab('stack-panel');
+            await this.animateResultToStack(result);
+            
+            this.stack.push(result);
+            const newNode = { id: `node-${this.nodeCounter++}`, value: token, isOperand: false, children: [leftNode, rightNode], x: 0, y: 0, width: 0 };
+            this.treeStack.push(newNode);
+            
+            this.renderStack();
+            this.renderTree();
+
+        } else {
+            this.showError(`エラー: トークン "${token}" は数値でも演算子でもありません。`);
+            return;
+        }
+
+        this.step++;
+
+        if (this.step >= this.tokens.length) {
+            this.finish();
+        } else {
+            this.nextBtn.disabled = false;
+            this.prevBtn.disabled = false;
+        }
+    },
+
+    finish() {
+        if (this.stack.length === 1 && this.treeStack.length === 1) {
+            const finalResult = this.stack[0];
+            this.explanationText.textContent = `評価が完了しました。最終結果は ${finalResult.toFixed(2)} です。`;
+            this.resultText.textContent = `最終結果: ${finalResult.toFixed(2)}`;
+            this.tokenElements.forEach(el => el.classList.remove('active'));
+            this.showTab('tree-panel');
+        } else {
+            this.showError("エラー: 式が不正です。最後にスタックに残る値は1つでなければなりません。");
+        }
+        this.nextBtn.disabled = true;
+        this.prevBtn.disabled = false;
+    },
+    
+    // --- Animation Helpers ---
+    async animateTokenMovement(fromEl, toContainer, value) {
+        const fromRect = fromEl.getBoundingClientRect();
+        const toRect = toContainer.getBoundingClientRect();
+        
+        const animToken = document.createElement('div');
+        animToken.className = 'token animation-token';
+        animToken.textContent = typeof value === 'number' ? value.toFixed(2) : value;
+        animToken.style.left = `${fromRect.left}px`;
+        animToken.style.top = `${fromRect.top}px`;
+        animToken.style.width = `${fromRect.width}px`;
+        document.body.appendChild(animToken);
+        
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        const targetX = toRect.left + (toRect.width / 2) - (fromRect.width / 2);
+        const targetY = toContainer.id === 'stack-container' 
+            ? toRect.top + toRect.height - ((this.stack.length + 1) * 35) - 10
+            : toRect.top + (toRect.height / 2) - (fromRect.height / 2);
+        
+        animToken.style.transform = `translate(${targetX - fromRect.left}px, ${targetY - fromRect.top}px)`;
+        animToken.style.opacity = '0.5';
+
+        await new Promise(resolve => setTimeout(resolve, 700));
+        animToken.remove();
+    },
+
+    async animateOperation(operator, leftVal, rightVal) {
+        const stackItems = this.stackContainer.querySelectorAll('.stack-item');
+        if (stackItems.length < 2) return;
+
+        const rightEl = stackItems[stackItems.length - 1];
+        const leftEl = stackItems[stackItems.length - 2];
+        
+        const opDisplay = window.innerWidth < 768 ? this.opDisplayMobile : this.opDisplayDesktop;
+        
+        const moveRightPromise = this.animateTokenMovement(rightEl, opDisplay, rightVal);
+        const moveLeftPromise = this.animateTokenMovement(leftEl, opDisplay, leftVal);
+        
+        rightEl.classList.add('pop');
+        leftEl.classList.add('pop');
+        
+        await Promise.all([moveLeftPromise, moveRightPromise]);
+        
+        this.renderStack();
+        
+        const opHTML = `
+            <span class="token bg-green-200">${leftVal.toFixed(2)}</span>
+            <span class="token bg-red-200">${operator}</span>
+            <span class="token bg-green-200">${rightVal.toFixed(2)}</span>
+            <span>=</span>
+            <span id="op-result" class="opacity-0">?</span>
+        `;
+        this.opDisplayMobile.innerHTML = opHTML;
+        this.opDisplayDesktop.innerHTML = opHTML;
+        
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        const result = this.calculate(leftVal, rightVal, operator);
+        document.querySelectorAll('#op-result').forEach(el => {
+            el.textContent = result.toFixed(2);
+            el.classList.remove('opacity-0');
+            el.classList.add('transition-opacity', 'duration-500');
+        });
+    },
+    
+    async animateResultToStack(result) {
+        const opDisplay = window.innerWidth < 768 ? this.opDisplayMobile : this.opDisplayDesktop;
+        const resultEl = opDisplay.querySelector('#op-result');
+        if (!resultEl) return;
+        
+        await this.animateTokenMovement(resultEl, this.stackContainer, result);
+        this.opDisplayMobile.innerHTML = '';
+        this.opDisplayDesktop.innerHTML = '';
+    },
+
+    calculate(a, b, op) {
+        switch (op) {
+            case '+': return a + b;
+            case '-': return a - b;
+            case '*': return a * b;
+            case '/': return a / b;
+            default: return NaN;
+        }
+    },
+
+    // --- Rendering Functions ---
+    renderStack() {
+        this.stackContainer.innerHTML = '';
+        this.stack.forEach(value => {
+            const item = document.createElement('div');
+            item.className = 'token stack-item';
+            item.textContent = typeof value === 'number' ? value.toFixed(2) : value;
+            this.stackContainer.appendChild(item);
+        });
+    },
+
+    renderTree() {
+        this.treeNodesContainer.innerHTML = '';
+        this.treeSvg.innerHTML = '';
+        if (this.treeStack.length === 0) return;
+
+        const root = this.treeStack[this.treeStack.length - 1];
+        
+        this.calculateWidth(root);
+        this.calculatePosition(root, 0, 0); // Calculate with 0 as initial x
+
+        let minX = Infinity, maxX = -Infinity, maxY = -Infinity;
+        const allNodes = [];
+        const collectNodes = (node) => {
+            if (!node) return;
+            allNodes.push(node);
+            node.children.forEach(collectNodes);
+        };
+        collectNodes(root);
+
+        allNodes.forEach(node => {
+            minX = Math.min(minX, node.x - this.NODE_WIDTH / 2);
+            maxX = Math.max(maxX, node.x + this.NODE_WIDTH / 2);
+            maxY = Math.max(maxY, node.y + this.NODE_HEIGHT / 2);
+        });
+
+        const treeWidth = maxX - minX;
+        const offsetX = -minX + this.NODE_WIDTH / 2;
+        const finalWidth = treeWidth + this.NODE_WIDTH;
+        const finalHeight = maxY + 20;
+
+        this.treeNodesContainer.style.width = `${finalWidth}px`;
+        this.treeNodesContainer.style.height = `${finalHeight}px`;
+        this.treeSvg.setAttribute('width', finalWidth);
+        this.treeSvg.setAttribute('height', finalHeight);
+
+        const drawNodeWithOffset = (node) => {
+            if (!node) return;
+            const finalX = node.x + offsetX;
+
+            const nodeEl = document.createElement('div');
+            nodeEl.id = node.id;
+            nodeEl.className = `tree-node ${node.isOperand ? 'operand' : 'operator'}`;
+            nodeEl.style.left = `${finalX}px`;
+            nodeEl.style.top = `${node.y}px`;
+            nodeEl.textContent = typeof node.value === 'number' ? node.value.toFixed(2) : node.value;
+            this.treeNodesContainer.appendChild(nodeEl);
+
+            node.children.forEach(child => {
+                drawNodeWithOffset(child);
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', finalX);
+                line.setAttribute('y1', node.y);
+                line.setAttribute('x2', child.x + offsetX);
+                line.setAttribute('y2', child.y);
+                line.setAttribute('class', 'tree-line');
+                this.treeSvg.appendChild(line);
+            });
+        };
+
+        drawNodeWithOffset(root);
+    },
+
+
+    calculateWidth(node) {
+        if (!node) return 0;
+        if (node.isOperand) { node.width = this.NODE_WIDTH; return node.width; }
+        const leftWidth = this.calculateWidth(node.children[0]);
+        const rightWidth = this.calculateWidth(node.children[1]);
+        node.width = leftWidth + rightWidth + this.NODE_WIDTH;
+        return node.width;
+    },
+
+    calculatePosition(node, depth, x) {
+        if (!node) return;
+        node.x = x; node.y = depth * this.LEVEL_HEIGHT + this.NODE_HEIGHT;
+        if (!node.isOperand) {
+            const leftChild = node.children[0]; const rightChild = node.children[1];
+            const totalChildWidth = leftChild.width + rightChild.width;
+            const leftX = x - totalChildWidth / 2 + leftChild.width / 2;
+            const rightX = x + totalChildWidth / 2 - rightChild.width / 2;
+            this.calculatePosition(leftChild, depth + 1, leftX);
+            this.calculatePosition(rightChild, depth + 1, rightX);
+        }
+    },
+
+    isNumber(token) { return !isNaN(parseFloat(token)) && isFinite(token); },
+    isOperator(token) { return ['+', '-', '*', '/'].includes(token); }
+};
+
+document.addEventListener('DOMContentLoaded', () => RPNVisualizer.init());
+
+</script>
+</body>
+</html>
