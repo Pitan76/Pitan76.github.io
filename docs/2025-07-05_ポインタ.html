@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C言語 ポインタ・アドレス可視化ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        #visualizer-wrapper {
+            position: relative;
+            background: #1f2937 url('https://www.transparenttextures.com/patterns/cubes.png');
+            border-radius: 0.75rem;
+            padding: 2rem 1rem 1rem;
+            min-height: 500px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            overflow: hidden;
+        }
+        #visualizer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .memory-box {
+            position: absolute;
+            width: 120px;
+            height: 80px;
+            background-color: white;
+            border: 2px solid #4b5563;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: all 0.5s ease-in-out;
+            transform: scale(0);
+            display: flex;
+            flex-direction: column;
+        }
+        .memory-box.show {
+            transform: scale(1);
+        }
+        .mem-address {
+            font-size: 0.75rem;
+            color: #6b7280;
+            padding: 2px 6px;
+            background-color: #f3f4f6;
+            border-bottom: 1px solid #d1d5db;
+            border-radius: 0.5rem 0.5rem 0 0;
+            text-align: center;
+        }
+        .mem-header {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #4b5563;
+            padding: 2px 6px;
+            text-align: center;
+        }
+        .mem-value {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #111827;
+        }
+        .mem-value.is-pointer {
+            color: #be123c; /* rose-700 */
+            font-size: 1.1rem;
+        }
+        .pointer-arrow {
+            position: absolute;
+            stroke: #be123c;
+            stroke-width: 3;
+            fill: #be123c;
+            z-index: 5;
+            transition: all 0.5s ease-in-out;
+        }
+        #robot {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            transition: all 0.5s ease-in-out;
+            z-index: 20;
+            top: -60px; /* Initially off-screen */
+        }
+        .highlight {
+            box-shadow: 0 0 20px #facc15;
+            border-color: #facc15;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 max-w-7xl">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold">C言語 ポインタ・アドレス可視化ツール</h1>
+            <p class="text-gray-600 mt-2 text-lg">メモリ上の変数の動きをアニメーションで学びましょう。</p>
+        </header>
+
+        <!-- Controls & Explanation -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4 border-b pb-2">コード実行</h3>
+                <div class="space-y-4">
+                    <div class="flex gap-2">
+                        <input type="text" id="code-input" class="mono flex-1 min-w-0 block w-full px-3 py-2 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300" placeholder="例: int a = 10;">
+                        <button id="execute-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors"><i class="fas fa-play mr-2"></i>実行</button>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="code-sample-btn mono">int a = 10;</button>
+                        <button class="code-sample-btn mono">int* p = &a;</button>
+                        <button class="code-sample-btn mono">*p = 20;</button>
+                        <button class="code-sample-btn mono">int b = 5;</button>
+                        <button class="code-sample-btn mono">p = &b;</button>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4 border-b pb-2">プロセス解説</h3>
+                <p id="explanation-text" class="text-gray-700 text-lg min-h-[5em]">実行したいコードを入力または選択してください。</p>
+            </div>
+        </div>
+
+        <!-- Visualizer -->
+        <div id="visualizer-wrapper">
+            <div id="visualizer">
+                 <div id="robot">
+                    <svg viewBox="0 0 100 100">
+                        <path d="M 20 40 L 80 40 L 80 80 L 70 95 L 30 95 L 20 80 Z" fill="#d1d5db"/>
+                    </svg>
+                </div>
+                <svg id="arrow-svg" class="w-full h-full absolute top-0 left-0"></svg>
+            </div>
+        </div>
+    </div>
+
+<script>
+class PointerVisualizer {
+    constructor() {
+        this.visualizer = document.getElementById('visualizer');
+        this.arrowSvg = document.getElementById('arrow-svg');
+        this.robot = document.getElementById('robot');
+        this.codeInput = document.getElementById('code-input');
+        this.executeBtn = document.getElementById('execute-btn');
+        this.explanationText = document.getElementById('explanation-text');
+        this.sampleBtns = document.querySelectorAll('.code-sample-btn');
+
+        this.variables = {}; // { name: { value, address, element, type } }
+        this.memoryCounter = 0x100;
+        this.isAnimating = false;
+
+        this.init();
+    }
+
+    init() {
+        this.executeBtn.addEventListener('click', () => this.handleExecute());
+        this.codeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.handleExecute();
+        });
+        this.sampleBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.codeInput.value = btn.textContent;
+                this.handleExecute();
+            });
+        });
+    }
+
+    setExplanation(text, highlight = false) {
+        this.explanationText.innerHTML = text;
+        this.explanationText.className = `text-lg transition-all duration-200 ${highlight ? 'text-indigo-600 font-bold' : 'text-gray-700'}`;
+    }
+    
+    async sleep(ms = 500) { await new Promise(resolve => setTimeout(resolve, ms)); }
+
+    async handleExecute() {
+        if (this.isAnimating) return;
+        const code = this.codeInput.value.trim();
+        if (!code) return;
+
+        this.isAnimating = true;
+        this.setControls(false);
+        await this.parseAndExecute(code);
+        this.isAnimating = false;
+        this.setControls(true);
+        this.codeInput.value = '';
+    }
+    
+    setControls(enabled) {
+        this.executeBtn.disabled = !enabled;
+        this.codeInput.disabled = !enabled;
+        this.sampleBtns.forEach(btn => btn.disabled = !enabled);
+    }
+
+    async parseAndExecute(code) {
+        // Simplified parser
+        // Case 1: int a = 10;
+        let match = code.match(/^int\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(-?\d+);?$/);
+        if (match) {
+            const [, name, value] = match;
+            await this.createVariable(name, parseInt(value), 'int');
+            return;
+        }
+
+        // Case 2: int* p = &a;
+        match = code.match(/^int\s*\*\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*&\s*([a-zA-Z_][a-zA-Z0-9_]*);?$/);
+        if (match) {
+            const [, pointerName, varName] = match;
+            await this.createPointer(pointerName, varName);
+            return;
+        }
+        
+        // Case 3: p = &b;
+        match = code.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*&\s*([a-zA-Z_][a-zA-Z0-9_]*);?$/);
+        if (match) {
+            const [, pointerName, varName] = match;
+            await this.repointPointer(pointerName, varName);
+            return;
+        }
+
+        // Case 4: *p = 20;
+        match = code.match(/^\*\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(-?\d+);?$/);
+        if (match) {
+            const [, pointerName, value] = match;
+            await this.dereferencePointer(pointerName, parseInt(value));
+            return;
+        }
+
+        this.setExplanation(`エラー: 解釈できないコードです: "${code}"`, true);
+    }
+
+    async createVariable(name, value, type) {
+        if (this.variables[name]) {
+            this.setExplanation(`エラー: 変数 '${name}' は既に定義されています。`, true);
+            return;
+        }
+        const address = `0x${this.memoryCounter.toString(16)}`;
+        this.memoryCounter += 4; // Simulate int size
+
+        this.setExplanation(`変数 '${name}' のためのメモリを確保します...`);
+        await this.sleep();
+
+        const box = this.createMemoryBox(name, address, value, type);
+        this.variables[name] = { value, address, element: box, type };
+        this.positionBox(box);
+        await this.sleep(50);
+        box.classList.add('show');
+        
+        await this.moveRobotTo(box);
+        this.setExplanation(`アドレス ${address} に変数 '${name}' を作成し、値 ${value} を格納しました。`);
+    }
+
+    async createPointer(pointerName, varName) {
+        if (!this.variables[varName]) {
+            this.setExplanation(`エラー: 変数 '${varName}' が存在しません。`, true);
+            return;
+        }
+        if (this.variables[pointerName]) {
+            this.setExplanation(`エラー: ポインタ '${pointerName}' は既に定義されています。`, true);
+            return;
+        }
+
+        const targetVar = this.variables[varName];
+        const address = `0x${this.memoryCounter.toString(16)}`;
+        this.memoryCounter += 4; // Simulate pointer size
+
+        this.setExplanation(`ポインタ '${pointerName}' のためのメモリを確保します...`);
+        await this.sleep();
+
+        const box = this.createMemoryBox(pointerName, address, targetVar.address, 'int*');
+        this.variables[pointerName] = { value: targetVar.address, address, element: box, type: 'int*', pointsTo: varName };
+        this.positionBox(box);
+        await this.sleep(50);
+        box.classList.add('show');
+        
+        await this.moveRobotTo(targetVar.element);
+        this.setExplanation(`変数 '${varName}' のアドレス (${targetVar.address}) を取得します。`);
+        await this.sleep();
+
+        await this.moveRobotTo(box);
+        this.setExplanation(`ポインタ '${pointerName}' にアドレス ${targetVar.address} を格納します。`);
+        await this.drawPointers();
+    }
+
+    async repointPointer(pointerName, varName) {
+        if (!this.variables[pointerName] || !this.variables[pointerName].type.includes('*')) {
+            this.setExplanation(`エラー: '${pointerName}' はポインタではありません。`, true);
+            return;
+        }
+        if (!this.variables[varName]) {
+            this.setExplanation(`エラー: 変数 '${varName}' が存在しません。`, true);
+            return;
+        }
+        
+        const pointer = this.variables[pointerName];
+        const targetVar = this.variables[varName];
+        
+        await this.moveRobotTo(targetVar.element);
+        this.setExplanation(`変数 '${varName}' のアドレス (${targetVar.address}) を取得します。`);
+        await this.sleep();
+
+        await this.moveRobotTo(pointer.element);
+        this.setExplanation(`ポインタ '${pointerName}' の値を ${targetVar.address} に更新します。`);
+        pointer.value = targetVar.address;
+        pointer.pointsTo = varName;
+        pointer.element.querySelector('.mem-value').textContent = targetVar.address;
+        await this.drawPointers();
+    }
+    
+    async dereferencePointer(pointerName, value) {
+        if (!this.variables[pointerName] || !this.variables[pointerName].type.includes('*')) {
+            this.setExplanation(`エラー: '${pointerName}' はポインタではありません。`, true);
+            return;
+        }
+        const pointer = this.variables[pointerName];
+        const targetVarName = pointer.pointsTo;
+        if (!targetVarName || !this.variables[targetVarName]) {
+            this.setExplanation(`エラー: ポインタ '${pointerName}' は有効な変数を指していません。`, true);
+            return;
+        }
+        const targetVar = this.variables[targetVarName];
+
+        await this.moveRobotTo(pointer.element);
+        this.setExplanation(`ポインタ '${pointerName}' を間接参照します...`);
+        pointer.element.classList.add('highlight');
+        await this.sleep();
+
+        this.setExplanation(`ポインタはアドレス ${pointer.value} を指しています。`);
+        await this.sleep();
+        
+        await this.moveRobotTo(targetVar.element);
+        this.setExplanation(`アドレス ${targetVar.address} の値を ${value} に更新します。`);
+        targetVar.element.classList.add('highlight');
+        await this.sleep();
+        
+        targetVar.value = value;
+        targetVar.element.querySelector('.mem-value').textContent = value;
+        
+        pointer.element.classList.remove('highlight');
+        targetVar.element.classList.remove('highlight');
+    }
+
+    createMemoryBox(name, address, value, type) {
+        const box = document.createElement('div');
+        box.className = 'memory-box';
+        box.innerHTML = `
+            <div class="mem-address mono">${address}</div>
+            <div class="mem-header mono">${type} ${name}</div>
+            <div class="mem-value mono ${type.includes('*') ? 'is-pointer' : ''}">${value}</div>
+        `;
+        this.visualizer.appendChild(box);
+        return box;
+    }
+
+    positionBox(box) {
+        const existingBoxes = this.visualizer.querySelectorAll('.memory-box').length - 1;
+        const containerWidth = this.visualizer.offsetWidth;
+        const containerHeight = this.visualizer.offsetHeight;
+        const x = (existingBoxes % 4) * 140 + 50;
+        const y = Math.floor(existingBoxes / 4) * 120 + 50;
+        box.style.left = `${x}px`;
+        box.style.top = `${y}px`;
+    }
+    
+    async moveRobotTo(element) {
+        const rect = element.getBoundingClientRect();
+        const containerRect = this.visualizer.getBoundingClientRect();
+        const targetX = rect.left - containerRect.left + (rect.width / 2) - (this.robot.offsetWidth / 2);
+        const targetY = rect.top - containerRect.top - this.robot.offsetHeight - 5;
+        this.robot.style.left = `${targetX}px`;
+        this.robot.style.top = `${targetY}px`;
+        await this.sleep();
+    }
+    
+    async drawPointers() {
+        this.arrowSvg.innerHTML = '';
+        for (const key in this.variables) {
+            const v = this.variables[key];
+            if (v.type.includes('*') && v.pointsTo && this.variables[v.pointsTo]) {
+                const fromEl = v.element;
+                const toEl = this.variables[v.pointsTo].element;
+                this.drawArrow(fromEl, toEl);
+            }
+        }
+    }
+
+    drawArrow(fromEl, toEl) {
+        const fromRect = fromEl.getBoundingClientRect();
+        const toRect = toEl.getBoundingClientRect();
+        const containerRect = this.visualizer.getBoundingClientRect();
+
+        const startX = fromRect.left - containerRect.left + fromRect.width / 2;
+        const startY = fromRect.top - containerRect.top + fromRect.height / 2;
+        const endX = toRect.left - containerRect.left + toRect.width / 2;
+        const endY = toRect.top - containerRect.top + toRect.height / 2;
+        
+        const dx = endX - startX, dy = endY - startY;
+        const angle = Math.atan2(dy, dx);
+        const length = Math.sqrt(dx*dx + dy*dy);
+        
+        const adjustedEndX = endX - 30 * Math.cos(angle);
+        const adjustedEndY = endY - 30 * Math.sin(angle);
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute('d', `M ${startX} ${startY} L ${adjustedEndX} ${adjustedEndY}`);
+        path.setAttribute('class', 'pointer-arrow');
+        path.setAttribute('marker-end', 'url(#arrowhead)');
+        
+        if (!this.arrowSvg.querySelector('#arrowhead')) {
+            const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+            const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+            marker.setAttribute('id', 'arrowhead');
+            marker.setAttribute('viewBox', '0 0 10 10');
+            marker.setAttribute('refX', '8');
+            marker.setAttribute('refY', '5');
+            marker.setAttribute('markerWidth', '6');
+            marker.setAttribute('markerHeight', '6');
+            marker.setAttribute('orient', 'auto-start-reverse');
+            const arrowheadPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            arrowheadPath.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+            marker.appendChild(arrowheadPath);
+            defs.appendChild(marker);
+            this.arrowSvg.appendChild(defs);
+        }
+        this.arrowSvg.appendChild(path);
+    }
+}
+
+new PointerVisualizer();
+</script>
+</body>
+</html>
