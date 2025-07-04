@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最小ヒープ構築ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+        .node {
+            transition: all 0.5s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .node.new-node {
+             background-color: #6ee7b7 !important; /* emerald-300 */
+             border-color: #10b981 !important; /* emerald-500 */
+        }
+        .comparing {
+            transform: scale(1.1);
+            background-color: #fef08a !important; /* yellow-200 */
+            border-color: #facc15 !important; /* yellow-400 */
+        }
+        .swapping {
+            transform: scale(1.1);
+            background-color: #a5b4fc !important; /* indigo-300 */
+            border-color: #6366f1 !important; /* indigo-500 */
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">最小ヒープ構築ツール</h1>
+            <p class="mt-2 text-gray-600">トップダウン式のヒープ構築アニメーション</p>
+        </header>
+        
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-bold mb-4">コントロールパネル</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="initialData" class="block text-sm font-medium text-gray-700 mb-2">データ (カンマ区切り)</label>
+                    <textarea id="initialData" rows="3" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                <div>
+                    <label for="speedControl" class="block text-sm font-medium text-gray-700 mb-2">自動再生の速度: <span id="speedValue" class="font-bold">1.8</span>秒</label>
+                    <input id="speedControl" type="range" min="0.2" max="3.0" step="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-3 items-center">
+                <button id="startButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">構築開始</button>
+                <button id="nextButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors" disabled>次へ</button>
+                <button id="autoButton" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition-colors" disabled>自動再生</button>
+                <button id="resetButton" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">リセット</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-bold mb-4">二分木</h2>
+                <div id="treeContainer" class="relative w-full min-h-[400px] overflow-x-auto">
+                     <!-- Nodes will be placed here -->
+                </div>
+            </div>
+
+            <div class="lg:col-span-1 bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-bold mb-2">ログ</h2>
+                <p class="text-sm text-gray-500 mb-4">現在のヒープ: <code id="arrayState" class="bg-gray-200 p-1 rounded"></code></p>
+                <div id="logContainer" class="h-96 overflow-y-auto bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p class="text-gray-500">データを設定し、「構築開始」ボタンを押してください。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- データと設定 ---
+        const defaultInitialArray = ['や', 'ま', 'だ', 'た', 'ろ', 'う', 'な', 'ど', 'そ', 'ん', 'ざ', 'い', 'せ', 'ぬ', 'よ'];
+        let initialArray = [];
+        let charOrder = {};
+        
+        let currentArray = [];
+        let steps = [];
+        let currentStepIndex = 0;
+        let autoPlayInterval = null;
+        let autoPlaySpeed = 1800;
+        let heapSize = 0;
+
+        // --- DOM要素 ---
+        const startButton = document.getElementById('startButton');
+        const nextButton = document.getElementById('nextButton');
+        const autoButton = document.getElementById('autoButton');
+        const resetButton = document.getElementById('resetButton');
+        const treeContainer = document.getElementById('treeContainer');
+        const logContainer = document.getElementById('logContainer');
+        const arrayState = document.getElementById('arrayState');
+        const initialDataInput = document.getElementById('initialData');
+        const speedControl = document.getElementById('speedControl');
+        const speedValue = document.getElementById('speedValue');
+
+        // --- イベントリスナー ---
+        startButton.addEventListener('click', startHeapBuild);
+        nextButton.addEventListener('click', executeNextStep);
+        autoButton.addEventListener('click', toggleAutoPlay);
+        resetButton.addEventListener('click', initialize);
+        speedControl.addEventListener('input', updateSpeed);
+        window.addEventListener('resize', () => drawTree(currentArray, heapSize));
+
+        // --- 初期化処理 ---
+        function initialize() {
+            initialDataInput.value = defaultInitialArray.join(', ');
+            speedControl.value = 1.8;
+            speedValue.textContent = '1.8';
+            autoPlaySpeed = 1800;
+            
+            currentArray = [];
+            steps = [];
+            currentStepIndex = 0;
+            heapSize = 0;
+            logContainer.innerHTML = '<p class="text-gray-500">データを設定し、「構築開始」ボタンを押してください。</p>';
+            drawTree([], 0);
+            updateArrayState();
+            
+            startButton.disabled = false;
+            initialDataInput.disabled = false;
+            nextButton.disabled = true;
+            autoButton.disabled = true;
+            autoButton.textContent = '自動再生';
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+            }
+        }
+
+        // --- ヒープ構築ロジック (トップダウン方式) ---
+        function startHeapBuild() {
+            // ユーザー入力をパース
+            const rawInput = initialDataInput.value.trim();
+            if (rawInput === '') {
+                alert('データを入力してください。');
+                return;
+            }
+            initialArray = rawInput.split(/[, ]+/).map(item => item.trim()).filter(item => item !== '');
+
+            // 比較順序を動的に生成
+            const sortedArray = [...initialArray].sort((a, b) => a.localeCompare(b, 'ja', { numeric: true }));
+            charOrder = {};
+            sortedArray.forEach((char, index) => {
+                charOrder[char] = index;
+            });
+
+            // UIをリセットして開始
+            currentArray = [...initialArray];
+            heapSize = 0;
+            steps = [];
+            currentStepIndex = 0;
+            
+            startButton.disabled = true;
+            initialDataInput.disabled = true;
+            logContainer.innerHTML = '';
+            addLog('トップダウン方式でヒープ構築のデータを作成します。', 'info');
+            
+            buildHeapSteps();
+            
+            nextButton.disabled = false;
+            autoButton.disabled = false;
+            addLog('準備完了。「次へ」もしくは「自動再生」でステップを進めてください。', 'success');
+        }
+
+        function buildHeapSteps() {
+            let tempArray = []; // シミュレーション用の配列
+            
+            for (let i = 0; i < initialArray.length; i++) {
+                const elementToAdd = initialArray[i];
+                steps.push({ type: 'add_node', index: i, value: elementToAdd, message: `'${elementToAdd}' をヒープに追加します` });
+                
+                tempArray.push(elementToAdd);
+                siftUpSteps(i, tempArray);
+            }
+            steps.push({ type: 'done', message: 'ヒープ構築完了' });
+        }
+
+        function siftUpSteps(startIndex, arr) {
+            let currentIndex = startIndex;
+            while (currentIndex > 0) {
+                const parentIndex = Math.floor((currentIndex - 1) / 2);
+                
+                steps.push({
+                    type: 'compare',
+                    indices: [currentIndex, parentIndex],
+                    message: `子(${currentIndex}:'${arr[currentIndex]}') と 親(${parentIndex}:'${arr[parentIndex]}') を比較します。`
+                });
+
+                if (charOrder[arr[parentIndex]] > charOrder[arr[currentIndex]]) {
+                    steps.push({
+                        type: 'swap',
+                        indices: [currentIndex, parentIndex],
+                        message: `親が大きいので、インデックス ${currentIndex} と ${parentIndex} を交換します。`
+                    });
+                    
+                    [arr[currentIndex], arr[parentIndex]] = [arr[parentIndex], arr[currentIndex]];
+                    currentIndex = parentIndex;
+                } else {
+                    steps.push({
+                        type: 'no_swap',
+                        index: currentIndex,
+                        message: `子のほうが大きい(または等しい)ので、この位置で確定です。`
+                    });
+                    break;
+                }
+            }
+        }
+
+        // --- ステップ実行とアニメーション ---
+        function executeNextStep() {
+            if (currentStepIndex >= steps.length) {
+                addLog('すべてのステップが完了しました。', 'success');
+                if(autoPlayInterval) toggleAutoPlay();
+                nextButton.disabled = true;
+                autoButton.disabled = true;
+                return;
+            }
+
+            const step = steps[currentStepIndex];
+            addLog(step.message, step.type);
+            
+            clearHighlights();
+
+            switch (step.type) {
+                case 'add_node':
+                    heapSize++;
+                    drawTree(currentArray, heapSize);
+                    highlightNode(heapSize - 1, 'new-node');
+                    updateArrayState();
+                    break;
+                case 'compare':
+                    drawTree(currentArray, heapSize);
+                    step.indices.forEach(i => highlightNode(i, 'comparing'));
+                    break;
+                case 'swap':
+                    const [index1, index2] = step.indices;
+                    [currentArray[index1], currentArray[index2]] = [currentArray[index2], currentArray[index1]];
+                    
+                    step.indices.forEach(i => highlightNode(i, 'swapping'));
+                    
+                    setTimeout(() => {
+                        drawTree(currentArray, heapSize);
+                        updateArrayState();
+                        step.indices.forEach(i => highlightNode(i, 'swapping'));
+                    }, autoPlaySpeed * 0.4);
+                    break;
+                case 'no_swap':
+                    drawTree(currentArray, heapSize);
+                    highlightNode(step.index, 'new-node');
+                    break;
+                case 'done':
+                    drawTree(currentArray, heapSize);
+                    if(autoPlayInterval) toggleAutoPlay();
+                    nextButton.disabled = true;
+                    autoButton.disabled = true;
+                    break;
+            }
+
+            currentStepIndex++;
+        }
+
+        function updateSpeed(event) {
+            autoPlaySpeed = parseFloat(event.target.value) * 1000;
+            speedValue.textContent = event.target.value;
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = setInterval(executeNextStep, autoPlaySpeed);
+            }
+        }
+
+        function toggleAutoPlay() {
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+                autoButton.textContent = '自動再生';
+                autoButton.classList.remove('bg-red-500', 'hover:bg-red-600');
+                autoButton.classList.add('bg-purple-500', 'hover:bg-purple-600');
+            } else {
+                autoButton.textContent = '停止';
+                autoButton.classList.remove('bg-purple-500', 'hover:bg-purple-600');
+                autoButton.classList.add('bg-red-500', 'hover:bg-red-600');
+                executeNextStep();
+                autoPlayInterval = setInterval(executeNextStep, autoPlaySpeed);
+            }
+        }
+        
+        // --- 描画関連 ---
+        function drawTree(array, size) {
+            treeContainer.innerHTML = '';
+            if (size === 0) return;
+
+            const containerWidth = treeContainer.clientWidth;
+            const vGap = 80;
+            const positions = [];
+            
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', 'absolute top-0 left-0 w-full h-full');
+            svg.style.pointerEvents = 'none';
+            treeContainer.appendChild(svg);
+
+            for (let i = 0; i < size; i++) {
+                const level = Math.floor(Math.log2(i + 1));
+                const indexInLevel = i - (Math.pow(2, level) - 1);
+                const nodesInLevel = Math.pow(2, level);
+                
+                const x = (containerWidth / (nodesInLevel + 1)) * (indexInLevel + 1);
+                const y = level * vGap + 40;
+                
+                positions[i] = { x, y };
+
+                const node = document.createElement('div');
+                node.id = `node-${i}`;
+                node.className = 'node absolute flex items-center justify-center w-12 h-12 bg-white border-2 border-gray-300 rounded-full text-lg font-bold';
+                node.style.left = `${x - 24}px`;
+                node.style.top = `${y - 24}px`;
+                node.textContent = array[i];
+                treeContainer.appendChild(node);
+
+                if (i > 0) {
+                    const parentIndex = Math.floor((i - 1) / 2);
+                    const parentPos = positions[parentIndex];
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', parentPos.x);
+                    line.setAttribute('y1', parentPos.y);
+                    line.setAttribute('x2', x);
+                    line.setAttribute('y2', y);
+                    line.setAttribute('stroke', '#cbd5e1');
+                    line.setAttribute('stroke-width', '2');
+                    svg.appendChild(line);
+                }
+            }
+        }
+
+        function highlightNode(index, className) {
+            const node = document.getElementById(`node-${index}`);
+            if (node) {
+                node.classList.add(className);
+            }
+        }
+
+        function clearHighlights() {
+            const nodes = document.querySelectorAll('.node');
+            nodes.forEach(node => {
+                node.classList.remove('comparing', 'swapping', 'new-node');
+            });
+        }
+
+        function addLog(message, type = 'default') {
+            const p = document.createElement('p');
+            let typeClass = 'text-gray-700';
+            switch(type) {
+                case 'info': typeClass = 'text-blue-600'; break;
+                case 'success': typeClass = 'text-green-600'; break;
+                case 'compare': typeClass = 'text-yellow-600'; break;
+                case 'swap': typeClass = 'text-indigo-600'; break;
+                case 'no_swap': typeClass = 'text-gray-500'; break;
+                case 'add_node': typeClass = 'text-emerald-600 mt-2 pt-2 border-t'; break;
+                case 'done': typeClass = 'text-green-700 mt-2 pt-2 border-t'; break;
+            }
+            p.className = `mb-2 text-sm ${typeClass}`;
+            p.innerHTML = `${message}`;
+            logContainer.appendChild(p);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        function updateArrayState() {
+            arrayState.textContent = `[${currentArray.slice(0, heapSize).join(', ')}]`;
+        }
+
+        // --- 初期表示 ---
+        document.addEventListener('DOMContentLoaded', initialize);
+    </script>
+</body>
+</html>
