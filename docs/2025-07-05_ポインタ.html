@@ -233,8 +233,66 @@ class PointerVisualizer {
             await this.dereferencePointer(pointerName, parseInt(value));
             return;
         }
+        
+        // Case 5: a = b;
+        match = code.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([a-zA-Z_][a-zA-Z0-9_]*);?$/);
+        if (match) {
+            const [, name, name2] = match;
+            await this.copyVariable(name, name2, 'int');
+            return;
+        }
+        
+        // Case 6: a = 5;
+        match = code.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(-?\d+);?$/);
+        if (match) {
+            const [, name, value] = match;
+            await this.assignVariable(name, value, 'int');
+            return;
+        }
 
         this.setExplanation(`エラー: 解釈できないコードです: "${code}"`, true);
+    }
+
+    async assignVariable(name, value, type) {
+        if (!this.variables[name]) {
+            this.setExplanation(`エラー: 変数 '${name}' は定義されていません。`, true);
+            return;
+        }
+
+        const targetVar = this.variables[name];
+
+        await this.moveRobotTo(targetVar);
+        targetVar.value = value;
+        
+        this.setExplanation(`変数 '${name}' に 値 ${value} を代入しました。`);
+    }
+
+    async copyVariable(name, name2, type) {
+        if (!this.variables[name]) {
+            this.setExplanation(`エラー: 変数 '${name}' は定義されていません。`, true);
+            return;
+        }        if (!this.variables[name2]) {
+            this.setExplanation(`エラー: 変数 '${name2}' は定義されていません。`, true);
+            return;
+        }
+
+        const targetVar = this.variables[name];
+        const sourceVar = this.variables[name2];
+        
+        await this.moveRobotTo(sourceVar);
+
+        this.setExplanation(`変数 '${name2}' の 値 ${sourceVar.value} を取得しました`);
+        const value = sourceVar.value;
+
+        sourceVar.classList.add('highlight');
+        await this.sleep();
+
+        await this.moveRobotTo(targetVar);
+
+        targetVar.value = value;
+        this.setExplanation(`変数 '${name}' に 変数 '${name2}' の 値 ${value} を代入しました。`);
+
+        sourceVar.classList.remove('highlight');
     }
 
     async createVariable(name, value, type) {
