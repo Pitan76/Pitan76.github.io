@@ -2,296 +2,173 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <!-- ビューポート設定: モバイルデバイスでの表示を最適化し、ユーザーによるズームを無効化 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Custom Home</title>
     
-    <!-- PWA (Progressive Web App) 対応のためのメタタグ -->
+    <!-- PWA対応 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Home">
-    <!-- ホーム画面に追加した際のアプリアイコン -->
     <link rel="apple-touch-icon" href="https://placehold.co/180x180/000000/FFFFFF?text=Home">
-    <!-- Web App Manifest (PWAの詳細設定) -->
     <link rel="manifest" href="manifest.json">
 
-    <!-- 外部ライブラリ: Tailwind CSS (UIフレームワーク) & Font Awesome (アイコン) -->
+    <!-- 外部ライブラリ -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <style>
-        /* Google FontsからInterフォントを読み込み */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
         
         body {
             font-family: 'Inter', sans-serif;
-            /* iOSのスワイプで戻る/進むジェスチャーや、Androidの引っ張って更新を無効化 */
             overscroll-behavior: none; 
         }
 
-        /* 壁紙用のコンテナ */
         #wallpaper {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-size: cover;
-            background-position: center;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
             transition: background-image 0.5s ease-in-out;
         }
 
-        /* 複数ページを格納するコンテナ */
         #pages-container {
-            display: flex;
-            height: 100%;
-            transition: transform 0.3s ease-out; /* スワイプ時のアニメーション */
+            display: flex; height: 100%;
+            transition: transform 0.3s ease-out;
         }
 
-        /* 各ページ */
         .page {
-            width: 100vw;
-            flex-shrink: 0;
-            padding: 4rem 1rem 7rem 1rem; /* 上部(ステータスバー)と下部(ドック)のスペース確保 */
+            width: 100vw; flex-shrink: 0;
+            padding: 4rem 1rem 7rem 1rem;
         }
 
-        /* アプリアイコンを配置するグリッド */
         .grid-container {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             grid-template-rows: repeat(7, 1fr);
-            gap: 0.5rem;
-            height: 100%;
+            gap: 0.5rem; height: 100%;
         }
 
-        /* アプリアイコンのスタイル */
         .app-icon {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            text-align: center;
-            padding-top: 0.5rem;
-            position: relative;
-            touch-action: none; /* ドラッグ操作のためにデフォルトのタッチ操作を無効化 */
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: flex-start; text-align: center;
+            padding-top: 0.5rem; position: relative; touch-action: none;
         }
         .app-icon .icon-bg {
-            width: 60px;
-            height: 60px;
-            border-radius: 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            color: white;
-            margin-bottom: 0.25rem;
-            background-size: cover;
-            background-position: center;
+            width: 60px; height: 60px; border-radius: 0.75rem;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px; color: white; margin-bottom: 0.25rem;
+            background-size: cover; background-position: center;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         .app-icon span {
-            color: white;
-            font-size: 12px;
-            /* 文字に影を付けて読みやすくする */
+            color: white; font-size: 12px;
             text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-            width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         
-        /* ドラッグ中のアイコンのスタイル */
         .ghost {
-            opacity: 0.4;
-            transform: scale(0.9);
+            opacity: 0.4; transform: scale(0.9);
         }
 
-        /* ドックのスタイル */
         #dock {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: calc(100% - 20px);
-            max-width: 400px;
-            padding: 0.75rem;
-            /* すりガラス効果 */
-            background-color: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border-radius: 1.5rem;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
+            position: fixed; bottom: 20px; left: 50%;
+            transform: translateX(-50%); width: calc(100% - 20px); max-width: 400px;
+            padding: 0.75rem; background-color: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border-radius: 1.5rem; display: flex;
+            justify-content: space-around; align-items: center;
         }
-        #dock .app-icon {
-            padding-top: 0;
-        }
+        #dock .app-icon { padding-top: 0; }
 
-        /* ページインジケーター */
         #page-indicator {
-            position: fixed;
-            bottom: 110px; /* ドックの少し上 */
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 8px;
+            position: fixed; bottom: 110px; left: 50%;
+            transform: translateX(-50%); display: flex; gap: 8px;
         }
         .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: rgba(255, 255, 255, 0.5);
-            transition: background-color 0.3s;
+            width: 8px; height: 8px; border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.5); transition: background-color 0.3s;
         }
-        .dot.active {
-            background-color: white;
-        }
+        .dot.active { background-color: white; }
         
-        /* モーダルウィンドウの背景 */
         .modal-backdrop {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 50;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5); display: flex;
+            align-items: center; justify-content: center; z-index: 50;
         }
-        /* モーダルウィンドウのコンテンツ部分 */
         .modal-content {
-            background-color: #2c2c2e;
-            color: white;
-            padding: 1.5rem;
-            border-radius: 1rem;
-            width: 90%;
-            max-width: 400px;
+            background-color: #2c2c2e; color: white; padding: 1.5rem;
+            border-radius: 1rem; width: 90%; max-width: 400px;
         }
         .modal-input {
-            width: 100%;
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-            background-color: #3a3a3c;
-            border: 1px solid #545458;
-            color: white;
-            margin-top: 0.5rem;
-            margin-bottom: 1rem;
+            width: 100%; padding: 0.75rem; border-radius: 0.5rem; background-color: #3a3a3c;
+            border: 1px solid #545458; color: white; margin-top: 0.5rem; margin-bottom: 1rem;
         }
         
-        /* フローティングウィンドウ */
         .window {
-            position: absolute;
-            width: 80vw;
-            height: 70vh;
-            background: #1c1c1e;
-            border-radius: 1rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-            z-index: 40;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            resize: both; /* CSSでリサイズ可能にする */
+            position: absolute; width: 80vw; height: 70vh;
+            background: #1e1e1e; border-radius: 0.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 40;
+            display: flex; flex-direction: column; overflow: hidden;
+            resize: both; border: 1px solid #4a4a4a;
+        }
+        .window.maximized {
+            width: 100vw; height: 100vh;
+            top: 0 !important; left: 0 !important;
+            border-radius: 0; resize: none;
         }
         .window-header {
-            padding: 0.5rem;
-            background: #3a3a3c;
-            cursor: move;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            padding: 0.5rem; background: #333; cursor: move;
+            display: flex; align-items: center;
+            color: #ccc; font-size: 14px;
         }
-        .window-button {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
+        .window-controls {
+            margin-left: auto; display: flex;
         }
+        .win-btn {
+            width: 40px; height: 30px; display: flex;
+            align-items: center; justify-content: center;
+            cursor: pointer; color: #ccc;
+        }
+        .win-btn:hover { background-color: rgba(255,255,255,0.1); }
+        .win-btn.close-btn:hover { background-color: #e81123; color: white; }
         .window-content {
-            flex-grow: 1;
-            border: none;
+            flex-grow: 1; border: none; background-color: #fff;
         }
     </style>
 </head>
 <body class="bg-black overflow-hidden h-screen w-screen">
 
-    <!-- 背景画像 -->
     <div id="wallpaper"></div>
-
-    <!-- アプリケーション全体のルートコンテナ -->
     <div id="app-root" class="h-full w-full relative">
-        <!-- ページコンテナ -->
-        <div id="pages-container">
-            <!-- JavaScriptによってページが動的に生成されます -->
-        </div>
-
-        <!-- ページインジケーター -->
-        <div id="page-indicator">
-            <!-- JavaScriptによってドットが動的に生成されます -->
-        </div>
-
-        <!-- ドック -->
-        <div id="dock">
-            <!-- JavaScriptによってドックアプリが動的に生成されます -->
-        </div>
+        <div id="pages-container"></div>
+        <div id="page-indicator"></div>
+        <div id="dock"></div>
     </div>
-    
-    <!-- アプリ追加用モーダル (初期状態は非表示) -->
-    <div id="add-app-modal" class="modal-backdrop hidden">
-        <div class="modal-content">
-            <h3 class="text-lg font-bold mb-4">アプリを追加</h3>
-            <label for="appName">アプリ名</label>
-            <input id="appName" type="text" class="modal-input" placeholder="例: Google">
-            <label for="appUrl">URL</label>
-            <input id="appUrl" type="url" class="modal-input" placeholder="https://google.com">
-            <label for="appIcon">Font Awesome アイコンクラス</label>
-            <input id="appIcon" type="text" class="modal-input" placeholder="例: fa-brands fa-google">
-            <label for="appColor">アイコン背景色</label>
-            <input id="appColor" type="color" class="modal-input w-full" value="#4285F4">
-            <div class="flex items-center mb-4">
-                <input id="appWindowed" type="checkbox" class="mr-2">
-                <label for="appWindowed">ウィンドウで開く</label>
-            </div>
-            <div class="flex justify-end gap-2">
-                <button id="cancel-add-app" class="px-4 py-2 bg-gray-500 rounded-lg">キャンセル</button>
-                <button id="confirm-add-app" class="px-4 py-2 bg-blue-500 rounded-lg">追加</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 壁紙変更用の非表示input要素 -->
+    <div id="add-app-modal" class="modal-backdrop hidden"></div>
     <input type="file" id="wallpaper-input" class="hidden" accept="image/*">
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- DOM要素の取得 ---
         const wallpaperDiv = document.getElementById('wallpaper');
         const pagesContainer = document.getElementById('pages-container');
         const pageIndicator = document.getElementById('page-indicator');
         const dock = document.getElementById('dock');
         const appRoot = document.getElementById('app-root');
         const wallpaperInput = document.getElementById('wallpaper-input');
+        const addAppModal = document.getElementById('add-app-modal');
 
-        // --- アプリケーションの状態管理 ---
-        let state = {
-            apps: [], // ページ上のアプリアイコン (2次元配列)
-            dockApps: [], // ドック内のアプリアイコン
-            wallpaper: 'https://source.unsplash.com/random/1080x1920?nature,water', // デフォルト壁紙
-            currentPage: 0 // 現在表示中のページ番号
-        };
+        // --- グローバル状態変数 ---
+        let state = { apps: [], dockApps: [], wallpaper: 'https://source.unsplash.com/random/1080x1920?nature,water', currentPage: 0 };
+        let isDragging = false; // ドラッグ中かどうかのフラグ
+        let pointerDownTime = 0; // マウス/タッチ開始時間
 
-        // --- デフォルトのアプリデータ ---
         const defaultApps = [
-            [ // 1ページ目
+            [
                 { name: 'カメラ', url: 'camera', icon: 'fa-solid fa-camera', color: '#555', type: 'native' },
                 { name: '天気', url: 'https://www.google.com/search?q=weather', icon: 'fa-solid fa-cloud-sun', color: '#3498db', windowed: true },
                 { name: 'マップ', url: 'maps://', icon: 'fa-solid fa-map-location-dot', color: '#34A853', type: 'url_scheme'},
                 { name: '設定', url: 'settings', icon: 'fa-solid fa-gear', color: '#8e8e93', type: 'action' },
-                { name: 'App Store', url: 'itms-apps://', icon: 'fa-brands fa-app-store-ios', color: '#0d84ff', type: 'url_scheme' },
-                { name: 'メモ', url: 'mobilenotes://', icon: 'fa-solid fa-note-sticky', color: '#ffcc00', type: 'url_scheme' },
             ],
-            [ // 2ページ目
+            [
                  { name: 'WikiChree', url: 'https://wikichree.com/', icon: 'fa-solid fa-leaf', color: '#4CAF50', windowed: true },
                  { name: 'GitHub', url: 'https://github.com', icon: 'fa-brands fa-github', color: '#181717', windowed: true },
             ]
@@ -299,74 +176,51 @@
         const defaultDockApps = [
             { name: '電話', url: 'tel:', icon: 'fa-solid fa-phone', color: '#4cd964', type: 'url_scheme' },
             { name: 'メッセージ', url: 'sms:', icon: 'fa-solid fa-comment-sms', color: '#007aff', type: 'url_scheme' },
-            { name: 'ブラウザ', url: 'https://google.com', icon: 'fa-brands fa-safari', color: '#f0f0f0', windowed: true, specialIconColor: '#007aff' },
+            { name: 'ブラウザ', url: 'https://google.com', icon: 'fa-brands fa-safari', color: '#f0f0f0', type: 'browser', specialIconColor: '#007aff' },
             { name: '音楽', url: 'music://', icon: 'fa-solid fa-music', color: '#ff2d55', type: 'url_scheme' },
         ];
 
-        // --- データ永続化 (localStorageを使用) ---
-        const STORAGE_KEY = 'iosHomeScreenData_v2';
-        function saveData() {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-            } catch (e) {
-                console.error("Failed to save data to localStorage", e);
-            }
-        }
-
+        const STORAGE_KEY = 'iosHomeScreenData_v4';
+        function saveData() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.error(e); } }
         function loadData() {
-            const data = localStorage.getItem(STORAGE_KEY);
-            if (data) {
-                state = JSON.parse(data);
-            } else {
-                // 保存されたデータがない場合、デフォルトデータを設定
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (data) state = JSON.parse(data);
+                else throw new Error("No data");
+            } catch (e) {
                 state.apps = JSON.parse(JSON.stringify(defaultApps));
                 state.dockApps = JSON.parse(JSON.stringify(defaultDockApps));
             }
         }
 
-        // --- UIレンダリング関数 ---
-        // この関数が呼ばれると、現在の`state`に基づいて画面全体が再描画される
         function render() {
-            // 壁紙をセット
             wallpaperDiv.style.backgroundImage = `url(${state.wallpaper})`;
-
-            // 既存の要素をクリア
             pagesContainer.innerHTML = '';
             dock.innerHTML = '';
             pageIndicator.innerHTML = '';
 
-            // ページとアプリをレンダリング
-            state.apps.forEach((pageApps, pageIndex) => {
+            (state.apps || []).forEach((pageApps, pageIndex) => {
                 const pageDiv = document.createElement('div');
                 pageDiv.className = 'page';
-                pageDiv.dataset.pageIndex = pageIndex;
-
                 const gridContainer = document.createElement('div');
                 gridContainer.className = 'grid-container';
                 gridContainer.dataset.pageIndex = pageIndex;
                 gridContainer.dataset.location = 'grid';
-
-                pageApps.forEach((app, appIndex) => {
-                    if (app) {
-                        const appElement = createAppIcon(app, pageIndex, appIndex, 'grid');
-                        gridContainer.appendChild(appElement);
-                    }
+                (pageApps || []).forEach((app, appIndex) => {
+                    if (app) gridContainer.appendChild(createAppIcon(app, pageIndex, appIndex, 'grid'));
                 });
                 pageDiv.appendChild(gridContainer);
                 pagesContainer.appendChild(pageDiv);
             });
             
-            // ドックアプリをレンダリング
             const dockContainer = document.createElement('div');
             dockContainer.className = 'flex justify-around items-center w-full';
             dockContainer.dataset.location = 'dock';
-            state.dockApps.forEach((app, appIndex) => {
-                const appElement = createAppIcon(app, 0, appIndex, 'dock');
-                dockContainer.appendChild(appElement);
+            (state.dockApps || []).forEach((app, appIndex) => {
+                dockContainer.appendChild(createAppIcon(app, 0, appIndex, 'dock'));
             });
             dock.appendChild(dockContainer);
 
-            // ページインジケーターをレンダリング
             if (state.apps.length > 1) {
                 for (let i = 0; i < state.apps.length; i++) {
                     const dot = document.createElement('div');
@@ -375,14 +229,10 @@
                 }
             }
             
-            // スワイプ位置を更新
             updatePagePosition();
-            
-            // ドラッグ＆ドロップのイベントリスナーを再設定
             setupDragAndDrop();
         }
 
-        // アプリアイコンのDOM要素を生成するヘルパー関数
         function createAppIcon(app, pageIndex, appIndex, location) {
             const appDiv = document.createElement('div');
             appDiv.className = 'app-icon';
@@ -394,380 +244,272 @@
             const iconBg = document.createElement('div');
             iconBg.className = 'icon-bg';
             iconBg.style.backgroundColor = app.color;
-            // アイコンがURLかFont Awesomeクラスか判定
-            if (app.icon.startsWith('http')) {
+            if (app.icon && app.icon.startsWith('http')) {
                 iconBg.style.backgroundImage = `url(${app.icon})`;
             } else {
                 const icon = document.createElement('i');
-                icon.className = app.icon;
+                icon.className = app.icon || '';
                 if(app.specialIconColor) icon.style.color = app.specialIconColor;
                 iconBg.appendChild(icon);
             }
 
             const appName = document.createElement('span');
             appName.textContent = app.name;
-
             appDiv.appendChild(iconBg);
             appDiv.appendChild(appName);
 
-            // クリックイベントリスナーを設定
-            appDiv.addEventListener('click', (e) => handleAppClick(e, app));
+            // ### クリック判定ロジック START ###
+            appDiv.addEventListener('mousedown', () => { pointerDownTime = new Date().getTime(); });
+            appDiv.addEventListener('touchstart', () => { pointerDownTime = new Date().getTime(); }, { passive: true });
+
+            appDiv.addEventListener('mouseup', () => {
+                const timeSinceDown = new Date().getTime() - pointerDownTime;
+                if (!isDragging && timeSinceDown < 200) {
+                    handleAppClick(app);
+                }
+            });
+            appDiv.addEventListener('touchend', () => {
+                const timeSinceDown = new Date().getTime() - pointerDownTime;
+                if (!isDragging && timeSinceDown < 200) {
+                    handleAppClick(app);
+                }
+            });
+            // ### クリック判定ロジック END ###
 
             return appDiv;
         }
 
-        // --- アプリクリック処理 ---
-        function handleAppClick(e, app) {
-            // ドラッグ直後のクリックイベントは無視する
-            if (e.currentTarget.classList.contains('dragging-prevent-click')) {
-                e.currentTarget.classList.remove('dragging-prevent-click');
-                return;
-            }
+        function handleAppClick(app) {
+            if (!app || !app.type) return;
 
-            // 特殊なアプリタイプの処理
             if (app.type === 'native' && app.url === 'camera') {
-                const cameraInput = document.createElement('input');
-                cameraInput.type = 'file';
-                cameraInput.accept = 'image/*';
-                cameraInput.capture = 'environment'; // 背面カメラを優先
-                cameraInput.click();
+                const camInput = document.createElement('input');
+                camInput.type = 'file'; camInput.accept = 'image/*';
+                camInput.capture = 'environment'; camInput.click();
                 return;
             }
-            
             if (app.type === 'action' && app.url === 'settings') {
-                openSettings();
-                return;
+                openSettings(); return;
             }
-
-            // ウィンドウで開くか、ページ遷移するか
+            if (app.type === 'browser') {
+                window.open(app.url, '_blank'); return;
+            }
             if (app.windowed) {
                 createWindow(app.name, app.url);
             } else {
-                window.location.href = app.url;
+                if (app.url) window.location.href = app.url;
             }
         }
         
-        // --- 設定メニュー ---
         function openSettings() {
              const settingsModal = document.createElement('div');
-             settingsModal.className = 'modal-backdrop';
+             settingsModal.className = 'modal-content';
              settingsModal.innerHTML = `
-                <div class="modal-content">
-                    <h3 class="text-lg font-bold mb-4">設定</h3>
-                    <button id="add-app-btn" class="w-full text-left p-3 bg-gray-700 rounded-lg mb-2 hover:bg-gray-600">アプリを追加</button>
-                    <button id="add-page-btn" class="w-full text-left p-3 bg-gray-700 rounded-lg mb-2 hover:bg-gray-600">新しいページを追加</button>
-                    <button id="change-wallpaper-btn" class="w-full text-left p-3 bg-gray-700 rounded-lg mb-2 hover:bg-gray-600">壁紙を変更</button>
-                    <button id="reset-settings-btn" class="w-full text-left p-3 bg-red-800 rounded-lg mb-2 hover:bg-red-700">設定をリセット</button>
-                    <div class="flex justify-end mt-4">
-                        <button id="close-settings" class="px-4 py-2 bg-blue-500 rounded-lg">閉じる</button>
-                    </div>
-                </div>
-             `;
-             document.body.appendChild(settingsModal);
-             
-             // 各ボタンにイベントを割り当て
-             document.getElementById('add-app-btn').onclick = () => { settingsModal.remove(); openAddAppModal(); };
+                <h3 class="text-lg font-bold mb-4">設定</h3>
+                <button id="add-app-btn" class="w-full text-left p-3 bg-gray-700 rounded-lg mb-2 hover:bg-gray-600">アプリを追加</button>
+                <button id="add-page-btn" class="w-full text-left p-3 bg-gray-700 rounded-lg mb-2 hover:bg-gray-600">新しいページを追加</button>
+                <button id="change-wallpaper-btn" class="w-full text-left p-3 bg-gray-700 rounded-lg mb-2 hover:bg-gray-600">壁紙を変更</button>
+                <button id="reset-settings-btn" class="w-full text-left p-3 bg-red-800 rounded-lg mb-2 hover:bg-red-700">設定をリセット</button>
+                <div class="flex justify-end mt-4">
+                    <button id="close-settings" class="px-4 py-2 bg-blue-500 rounded-lg">閉じる</button>
+                </div>`;
+             addAppModal.innerHTML = '';
+             addAppModal.appendChild(settingsModal);
+             addAppModal.classList.remove('hidden');
+
+             document.getElementById('add-app-btn').onclick = openAddAppModal;
              document.getElementById('add-page-btn').onclick = addPage;
              document.getElementById('change-wallpaper-btn').onclick = () => wallpaperInput.click();
              document.getElementById('reset-settings-btn').onclick = resetSettings;
-             document.getElementById('close-settings').onclick = () => settingsModal.remove();
+             document.getElementById('close-settings').onclick = () => addAppModal.classList.add('hidden');
         }
         
-        function addPage() {
-            state.apps.push([]); // 空のページを追加
-            saveData();
-            render();
-            // ユーザーにフィードバック
-            showToast('新しいページを追加しました。');
-        }
-        
-        function resetSettings() {
-            // alert()の代わりにカスタム確認ダイアログを使用
-            showConfirm('すべての設定とアプリ配置がリセットされます。よろしいですか？', () => {
-                localStorage.removeItem(STORAGE_KEY);
-                location.reload();
-            });
-        }
-
-        // --- 壁紙変更 ---
+        function addPage() { state.apps.push([]); saveData(); render(); showToast('新しいページを追加しました。'); }
+        function resetSettings() { showConfirm('すべての設定がリセットされます。よろしいですか？', () => { localStorage.removeItem(STORAGE_KEY); location.reload(); }); }
         wallpaperInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = (event) => {
-                    state.wallpaper = event.target.result;
-                    saveData();
-                    render();
-                };
+                reader.onload = (event) => { state.wallpaper = event.target.result; saveData(); render(); };
                 reader.readAsDataURL(file);
             }
         });
 
-        // --- アプリ追加モーダル ---
-        const addAppModal = document.getElementById('add-app-modal');
         function openAddAppModal() {
+            const addModalContent = document.createElement('div');
+            addModalContent.className = 'modal-content';
+            addModalContent.innerHTML = `
+                <h3 class="text-lg font-bold mb-4">アプリを追加</h3>
+                <label for="appName">アプリ名</label> <input id="appName" type="text" class="modal-input" placeholder="例: Google">
+                <label for="appUrl">URL</label> <input id="appUrl" type="url" class="modal-input" placeholder="https://google.com">
+                <label for="appIcon">Font Awesome アイコンクラス</label> <input id="appIcon" type="text" class="modal-input" placeholder="例: fa-brands fa-google">
+                <label for="appColor">アイコン背景色</label> <input id="appColor" type="color" class="modal-input w-full" value="#4285F4">
+                <div class="flex items-center mb-4">
+                    <input id="appWindowed" type="checkbox" class="mr-2"> <label for="appWindowed">ウィンドウで開く</label>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button id="cancel-add-app" class="px-4 py-2 bg-gray-500 rounded-lg">キャンセル</button>
+                    <button id="confirm-add-app" class="px-4 py-2 bg-blue-500 rounded-lg">追加</button>
+                </div>`;
+            addAppModal.innerHTML = '';
+            addAppModal.appendChild(addModalContent);
             addAppModal.classList.remove('hidden');
+
+            document.getElementById('cancel-add-app').onclick = () => addAppModal.classList.add('hidden');
+            document.getElementById('confirm-add-app').onclick = () => {
+                const name = document.getElementById('appName').value, url = document.getElementById('appUrl').value;
+                const icon = document.getElementById('appIcon').value, color = document.getElementById('appColor').value;
+                const windowed = document.getElementById('appWindowed').checked;
+                if (name && url && icon) {
+                    const newApp = { name, url, icon, color, windowed, type: windowed ? 'url_scheme' : 'browser' };
+                    const targetPage = state.apps[state.currentPage] || state.apps[state.apps.length - 1];
+                    targetPage.push(newApp);
+                    saveData(); render(); addAppModal.classList.add('hidden');
+                } else { showToast('すべての項目を入力してください。'); }
+            };
         }
-        document.getElementById('cancel-add-app').onclick = () => addAppModal.classList.add('hidden');
-        document.getElementById('confirm-add-app').onclick = () => {
-            const name = document.getElementById('appName').value;
-            const url = document.getElementById('appUrl').value;
-            const icon = document.getElementById('appIcon').value;
-            const color = document.getElementById('appColor').value;
-            const windowed = document.getElementById('appWindowed').checked;
 
-            if (name && url && icon) {
-                const newApp = { name, url, icon, color, windowed, type: 'url_scheme' };
-                // 現在のページ、または最後のページに追加
-                const targetPage = state.apps[state.currentPage] || state.apps[state.apps.length - 1];
-                targetPage.push(newApp);
-                saveData();
-                render();
-                addAppModal.classList.add('hidden');
-                // フォームをリセット
-                addAppModal.querySelector('form')?.reset(); // もしあれば
-                document.getElementById('appName').value = '';
-                document.getElementById('appUrl').value = '';
-                document.getElementById('appIcon').value = '';
-            } else {
-                showToast('すべての項目を入力してください。');
-            }
-        };
-
-        // --- ウィンドウ化機能 ---
         function createWindow(title, url) {
             const win = document.createElement('div');
             win.className = 'window';
-            
-            // 初期位置を画面中央寄りに
             const top = Math.random() * (window.innerHeight * 0.1) + (window.innerHeight * 0.1);
             const left = Math.random() * (window.innerWidth * 0.1) + (window.innerWidth * 0.05);
-            win.style.top = `${top}px`;
-            win.style.left = `${left}px`;
-
+            win.style.top = `${top}px`; win.style.left = `${left}px`;
             win.innerHTML = `
                 <div class="window-header">
-                    <div class="window-button bg-red-500"></div>
-                    <div class="window-button bg-yellow-500"></div>
-                    <div class="window-button bg-green-500"></div>
-                    <span class="text-xs ml-auto pr-2">${title}</span>
+                    <span>${title}</span>
+                    <div class="window-controls">
+                        <div class="win-btn min-btn"><i class="fa-regular fa-window-minimize"></i></div>
+                        <div class="win-btn max-btn"><i class="fa-regular fa-window-maximize"></i></div>
+                        <div class="win-btn close-btn"><i class="fa-solid fa-xmark"></i></div>
+                    </div>
                 </div>
-                <iframe class="window-content" src="${url}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
-            `;
+                <iframe class="window-content" src="${url}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>`;
             appRoot.appendChild(win);
 
             const header = win.querySelector('.window-header');
-            const closeBtn = win.querySelector('.bg-red-500');
-            closeBtn.onclick = () => win.remove();
+            win.querySelector('.close-btn').onclick = () => win.remove();
             
-            // ドラッグで移動 (タッチイベントにも対応)
-            let isDragging = false;
-            let offsetX, offsetY;
+            const maxBtn = win.querySelector('.max-btn');
+            let originalRect = null;
+            maxBtn.onclick = () => {
+                win.classList.toggle('maximized');
+                if (win.classList.contains('maximized')) {
+                    originalRect = { top: win.style.top, left: win.style.left, width: win.style.width, height: win.style.height };
+                    maxBtn.innerHTML = '<i class="fa-regular fa-window-restore"></i>';
+                } else {
+                    if(originalRect) { win.style.top = originalRect.top; win.style.left = originalRect.left; win.style.width = originalRect.width; win.style.height = originalRect.height; }
+                    maxBtn.innerHTML = '<i class="fa-regular fa-window-maximize"></i>';
+                }
+            };
+            win.querySelector('.min-btn').onclick = () => { showToast('最小化は現在開発中です。'); };
             
+            let isWindowDragging = false, offsetX, offsetY;
             const startDrag = (e) => {
-                isDragging = true;
-                const clientX = e.clientX || e.touches[0].clientX;
-                const clientY = e.clientY || e.touches[0].clientY;
-                offsetX = clientX - win.offsetLeft;
-                offsetY = clientY - win.offsetTop;
+                isWindowDragging = true;
+                const clientX = e.clientX || e.touches[0].clientX; const clientY = e.clientY || e.touches[0].clientY;
+                offsetX = clientX - win.offsetLeft; offsetY = clientY - win.offsetTop;
                 header.style.cursor = 'grabbing';
             };
-            
             const doDrag = (e) => {
-                if (isDragging) {
-                    const clientX = e.clientX || e.touches[0].clientX;
-                    const clientY = e.clientY || e.touches[0].clientY;
-                    win.style.left = `${clientX - offsetX}px`;
-                    win.style.top = `${clientY - offsetY}px`;
+                if (isWindowDragging && !win.classList.contains('maximized')) {
+                    const clientX = e.clientX || e.touches[0].clientX; const clientY = e.clientY || e.touches[0].clientY;
+                    win.style.left = `${clientX - offsetX}px`; win.style.top = `${clientY - offsetY}px`;
                 }
             };
+            const stopDrag = () => { isWindowDragging = false; header.style.cursor = 'move'; };
 
-            const stopDrag = () => {
-                isDragging = false;
-                header.style.cursor = 'move';
-            };
-
-            header.addEventListener('mousedown', startDrag);
-            document.addEventListener('mousemove', doDrag);
-            document.addEventListener('mouseup', stopDrag);
-            header.addEventListener('touchstart', startDrag);
-            document.addEventListener('touchmove', doDrag);
-            document.addEventListener('touchend', stopDrag);
+            header.addEventListener('mousedown', startDrag); document.addEventListener('mousemove', doDrag); document.addEventListener('mouseup', stopDrag);
+            header.addEventListener('touchstart', startDrag); document.addEventListener('touchmove', doDrag); document.addEventListener('touchend', stopDrag);
         }
 
-        // --- スワイプ処理 ---
-        let touchStartX = 0;
-        let touchEndX = 0;
-        let isSwiping = false;
-
+        let touchStartX = 0, isPageSwiping = false;
         pagesContainer.addEventListener('touchstart', (e) => {
-            // ウィンドウやモーダル、ドラッグ中のアイコン上でのスワイプは無効
-            if (e.target.closest('.window, .modal-backdrop, .ghost')) return;
-            touchStartX = e.changedTouches[0].screenX;
-            isSwiping = true;
+            if (e.target.closest('.app-icon, .window, .modal-backdrop')) return;
+            touchStartX = e.changedTouches[0].screenX; isPageSwiping = true;
         }, { passive: true });
-
         pagesContainer.addEventListener('touchend', (e) => {
-            if (!isSwiping) return;
-            isSwiping = false;
-            touchEndX = e.changedTouches[0].screenX;
-            handleSwipe();
+            if (!isPageSwiping) return;
+            isPageSwiping = false; 
+            const touchEndX = e.changedTouches[0].screenX;
+            const swipeThreshold = 50;
+            if (touchStartX - touchEndX > swipeThreshold) { if (state.currentPage < state.apps.length - 1) state.currentPage++; } 
+            else if (touchEndX - touchStartX > swipeThreshold) { if (state.currentPage > 0) state.currentPage--; }
+            saveData(); render();
         });
+        function updatePagePosition() { pagesContainer.style.transform = `translateX(-${state.currentPage * 100}vw)`; }
 
-        function handleSwipe() {
-            const swipeThreshold = 50; // 50px以上のスワイプでページ切り替え
-            if (touchStartX - touchEndX > swipeThreshold) {
-                // 左スワイプ (次のページへ)
-                if (state.currentPage < state.apps.length - 1) {
-                    state.currentPage++;
-                }
-            } else if (touchEndX - touchStartX > swipeThreshold) {
-                // 右スワイプ (前のページへ)
-                if (state.currentPage > 0) {
-                    state.currentPage--;
-                }
-            }
-            saveData();
-            render(); // UIを更新
-        }
-        
-        function updatePagePosition() {
-            pagesContainer.style.transform = `translateX(-${state.currentPage * 100}vw)`;
-        }
-
-        // --- ドラッグ＆ドロップ処理 ---
-        let draggedItem = null;
-        let from = {};
-        
+        let draggedItem = null, from = {};
         function setupDragAndDrop() {
-            const icons = document.querySelectorAll('.app-icon');
-            icons.forEach(icon => {
-                icon.addEventListener('dragstart', handleDragStart);
-                icon.addEventListener('dragend', handleDragEnd);
-                icon.addEventListener('dragover', handleDragOver);
-                icon.addEventListener('drop', handleDrop);
+            document.querySelectorAll('.app-icon').forEach(icon => {
+                icon.addEventListener('dragstart', (e) => {
+                    isDragging = true;
+                    draggedItem = e.currentTarget;
+                    from = { location: draggedItem.dataset.location, pageIndex: parseInt(draggedItem.dataset.pageIndex), appIndex: parseInt(draggedItem.dataset.appIndex) };
+                    setTimeout(() => { draggedItem.classList.add('ghost'); }, 0);
+                });
+                icon.addEventListener('dragend', (e) => {
+                    setTimeout(() => { isDragging = false; }, 100);
+                    e.currentTarget.classList.remove('ghost');
+                    draggedItem = null;
+                });
             });
+            document.querySelectorAll('.grid-container, #dock').forEach(zone => {
+                zone.addEventListener('dragover', (e) => e.preventDefault());
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    if (!draggedItem) return;
+                    
+                    const toLocation = e.currentTarget.id === 'dock' ? 'dock' : 'grid';
+                    let targetElement = e.target.closest('.app-icon');
+                    let toPageIndex = toLocation === 'grid' ? parseInt(e.currentTarget.dataset.pageIndex) : 0;
+                    let toAppIndex;
+
+                    if (targetElement && targetElement !== draggedItem) {
+                        toAppIndex = parseInt(targetElement.dataset.appIndex);
+                    } else {
+                        const toList = toLocation === 'grid' ? state.apps[toPageIndex] : state.dockApps;
+                        toAppIndex = toList.length;
+                    }
+                    
+                    const to = { location: toLocation, pageIndex: toPageIndex, appIndex: toAppIndex };
+                    moveApp(from, to, !targetElement);
+                });
+            });
+        }
+        function moveApp(from, to, onEmpty) {
+            const fromList = from.location === 'grid' ? state.apps[from.pageIndex] : state.dockApps;
+            const toList = to.location === 'grid' ? state.apps[to.pageIndex] : state.dockApps;
+            if (to.location === 'dock' && toList.length >= 4 && from.location !== 'dock') { showToast('ドックは4つまでです。'); render(); return; }
             
-            const dropZones = document.querySelectorAll('.grid-container, #dock .flex');
-            dropZones.forEach(zone => {
-                zone.addEventListener('dragover', handleDragOver);
-                zone.addEventListener('drop', handleDropOnEmptyArea);
-            });
-        }
+            const [movedApp] = fromList.splice(from.appIndex, 1);
+            if (!movedApp) { render(); return; }
 
-        function handleDragStart(e) {
-            draggedItem = this;
-            from = {
-                location: this.dataset.location,
-                pageIndex: parseInt(this.dataset.pageIndex),
-                appIndex: parseInt(this.dataset.appIndex)
-            };
-            setTimeout(() => {
-                this.classList.add('ghost');
-                this.classList.add('dragging-prevent-click');
-            }, 0);
-        }
-
-        function handleDragEnd(e) {
-            this.classList.remove('ghost');
-            setTimeout(() => { this.classList.remove('dragging-prevent-click'); }, 100);
-            draggedItem = null;
-        }
-
-        function handleDragOver(e) { e.preventDefault(); }
-
-        function handleDrop(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (draggedItem === this) return;
-            const to = {
-                location: this.dataset.location,
-                pageIndex: parseInt(this.dataset.pageIndex),
-                appIndex: parseInt(this.dataset.appIndex)
-            };
-            moveApp(from, to);
-        }
-        
-        function handleDropOnEmptyArea(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const toLocation = this.dataset.location;
-            const toPageIndex = parseInt(this.dataset.pageIndex);
-            let toAppIndex = (toLocation === 'grid') ? state.apps[toPageIndex].length : state.dockApps.length;
-            const to = { location: toLocation, pageIndex: toPageIndex, appIndex: toAppIndex };
-            moveApp(from, to, true);
-        }
-
-        function moveApp(from, to, onEmpty = false) {
-            let appToMove = (from.location === 'grid') ? state.apps[from.pageIndex].splice(from.appIndex, 1)[0] : state.dockApps.splice(from.appIndex, 1)[0];
-            if (!appToMove) return;
-
-            if (to.location === 'grid') {
-                state.apps[to.pageIndex].splice(to.appIndex, onEmpty ? 0 : 1, appToMove);
-                if (!onEmpty) {
-                    const appToSwap = state.apps[to.pageIndex][to.appIndex + 1];
-                    if (from.location === 'grid') state.apps[from.pageIndex].splice(from.appIndex, 0, appToSwap);
-                    else state.dockApps.splice(from.appIndex, 0, appToSwap);
-                }
-            } else { // to dock
-                if (state.dockApps.length >= 4 && from.location !== 'dock') {
-                    showToast('ドックは4つまでです。');
-                    if (from.location === 'grid') state.apps[from.pageIndex].splice(from.appIndex, 0, appToMove);
-                    else state.dockApps.splice(from.appIndex, 0, appToMove);
-                    render();
-                    return;
-                }
-                state.dockApps.splice(to.appIndex, onEmpty ? 0 : 1, appToMove);
-                 if (!onEmpty) {
-                    const appToSwap = state.dockApps[to.appIndex + 1];
-                    if (from.location === 'grid') state.apps[from.pageIndex].splice(from.appIndex, 0, appToSwap);
-                    else state.dockApps.splice(from.appIndex, 0, appToSwap);
-                }
+            if (onEmpty) {
+                toList.splice(to.appIndex, 0, movedApp);
+            } else {
+                const [swappedApp] = toList.splice(to.appIndex, 1, movedApp);
+                fromList.splice(from.appIndex, 0, swappedApp);
             }
-            saveData();
-            render();
+            saveData(); render();
         }
         
-        // --- ユーティリティ関数 (alert/confirmの代替) ---
         function showToast(message) {
             const toast = document.createElement('div');
             toast.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white px-4 py-2 rounded-full text-sm z-50';
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            setTimeout(() => {
-                toast.remove();
-            }, 2000);
+            toast.textContent = message; document.body.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 2000);
         }
-        
         function showConfirm(message, onConfirm) {
             const confirmModal = document.createElement('div');
             confirmModal.className = 'modal-backdrop';
-            confirmModal.innerHTML = `
-                <div class="modal-content">
-                    <p class="mb-4">${message}</p>
-                    <div class="flex justify-end gap-2">
-                        <button id="confirm-cancel" class="px-4 py-2 bg-gray-500 rounded-lg">キャンセル</button>
-                        <button id="confirm-ok" class="px-4 py-2 bg-red-500 rounded-lg">OK</button>
-                    </div>
-                </div>
-            `;
+            confirmModal.innerHTML = `<div class="modal-content"><p class="mb-4">${message}</p><div class="flex justify-end gap-2"><button id="confirm-cancel" class="px-4 py-2 bg-gray-500 rounded-lg">キャンセル</button><button id="confirm-ok" class="px-4 py-2 bg-red-500 rounded-lg">OK</button></div></div>`;
             document.body.appendChild(confirmModal);
-            document.getElementById('confirm-ok').onclick = () => {
-                onConfirm();
-                confirmModal.remove();
-            };
-            document.getElementById('confirm-cancel').onclick = () => {
-                confirmModal.remove();
-            };
+            document.getElementById('confirm-ok').onclick = () => { onConfirm(); confirmModal.remove(); };
+            document.getElementById('confirm-cancel').onclick = () => { confirmModal.remove(); };
         }
 
-
-        // --- 初期化処理 ---
-        function init() {
-            loadData();
-            render();
-        }
-
+        function init() { loadData(); render(); }
         init();
     });
     </script>
