@@ -284,7 +284,7 @@ class PointerVisualizer {
         this.setExplanation(`変数 '${name2}' の 値 ${sourceVar.value} を取得しました`);
         const value = sourceVar.value;
 
-        sourceVar.classList.add('highlight');
+        sourceVar.element.classList.add('highlight');
         await this.sleep();
 
         await this.moveRobotTo(targetVar.element);
@@ -292,7 +292,7 @@ class PointerVisualizer {
         targetVar.value = value;
         this.setExplanation(`変数 '${name}' に 変数 '${name2}' の 値 ${value} を代入しました。`);
 
-        sourceVar.classList.remove('highlight');
+        sourceVar.element.classList.remove('highlight');
     }
 
     async createVariable(name, value, type) {
