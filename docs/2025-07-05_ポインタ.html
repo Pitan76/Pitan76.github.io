@@ -261,9 +261,9 @@ class PointerVisualizer {
 
         const targetVar = this.variables[name];
 
-        await this.moveRobotTo(targetVar);
+        await this.moveRobotTo(targetVar.element);
         targetVar.value = value;
-        
+
         this.setExplanation(`変数 '${name}' に 値 ${value} を代入しました。`);
     }
 
@@ -279,7 +279,7 @@ class PointerVisualizer {
         const targetVar = this.variables[name];
         const sourceVar = this.variables[name2];
         
-        await this.moveRobotTo(sourceVar);
+        await this.moveRobotTo(sourceVar.element);
 
         this.setExplanation(`変数 '${name2}' の 値 ${sourceVar.value} を取得しました`);
         const value = sourceVar.value;
@@ -287,7 +287,7 @@ class PointerVisualizer {
         sourceVar.classList.add('highlight');
         await this.sleep();
 
-        await this.moveRobotTo(targetVar);
+        await this.moveRobotTo(targetVar.element);
 
         targetVar.value = value;
         this.setExplanation(`変数 '${name}' に 変数 '${name2}' の 値 ${value} を代入しました。`);
