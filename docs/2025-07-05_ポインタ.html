@@ -250,6 +250,22 @@ class PointerVisualizer {
             return;
         }
 
+        // Case 7: *p = b;
+        match = code.match(/^\*\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([a-zA-Z_][a-zA-Z0-9_]*);?$/);
+        if (match) {
+            const [, pointerName, varName] = match;
+            await this.dereferencePointerFromVariable(pointerName, varName);
+            return;
+        }
+
+        // Case 8: a = *p;
+        match = code.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*\*\s*([a-zA-Z_][a-zA-Z0-9_]*);?$/);
+        if (match) {
+            const [, varName, pointerName] = match;
+            await this.assignFromDereference(varName, pointerName);
+            return;
+        }
+
         this.setExplanation(`エラー: 解釈できないコードです: "${code}"`, true);
     }
 
@@ -403,6 +419,100 @@ class PointerVisualizer {
         targetVar.element.querySelector('.mem-value').textContent = value;
         
         pointer.element.classList.remove('highlight');
+        targetVar.element.classList.remove('highlight');
+    }
+
+    async dereferencePointerFromVariable(pointerName, varName) {
+        if (!this.variables[pointerName] || !this.variables[pointerName].type.includes('*')) {
+            this.setExplanation(`エラー: '${pointerName}' はポインタではありません。`, true);
+            return;
+        }
+        if (!this.variables[varName]) {
+            this.setExplanation(`エラー: 変数 '${varName}' が存在しません。`, true);
+            return;
+        }
+
+        const pointer = this.variables[pointerName];
+        const sourceVar = this.variables[varName];
+        const targetVarName = pointer.pointsTo;
+        
+        if (!targetVarName || !this.variables[targetVarName]) {
+            this.setExplanation(`エラー: ポインタ '${pointerName}' は有効な変数を指していません。`, true);
+            return;
+        }
+        
+        const targetVar = this.variables[targetVarName];
+
+        await this.moveRobotTo(sourceVar.element);
+        this.setExplanation(`変数 '${varName}' の値 ${sourceVar.value} を取得します。`);
+        sourceVar.element.classList.add('highlight');
+        await this.sleep();
+
+        await this.moveRobotTo(pointer.element);
+        this.setExplanation(`ポインタ '${pointerName}' を間接参照します...`);
+        pointer.element.classList.add('highlight');
+        await this.sleep();
+
+        this.setExplanation(`ポインタはアドレス ${pointer.value} を指しています。`);
+        await this.sleep();
+        
+        await this.moveRobotTo(targetVar.element);
+        this.setExplanation(`アドレス ${targetVar.address} の値を ${sourceVar.value} に更新します。`);
+        targetVar.element.classList.add('highlight');
+        await this.sleep();
+        
+        targetVar.value = sourceVar.value;
+        targetVar.element.querySelector('.mem-value').textContent = sourceVar.value;
+        
+        sourceVar.element.classList.remove('highlight');
+        pointer.element.classList.remove('highlight');
+        targetVar.element.classList.remove('highlight');
+    }
+
+    async assignFromDereference(varName, pointerName) {
+        if (!this.variables[varName]) {
+            this.setExplanation(`エラー: 変数 '${varName}' が存在しません。`, true);
+            return;
+        }
+        if (!this.variables[pointerName] || !this.variables[pointerName].type.includes('*')) {
+            this.setExplanation(`エラー: '${pointerName}' はポインタではありません。`, true);
+            return;
+        }
+
+        const targetVar = this.variables[varName];
+        const pointer = this.variables[pointerName];
+        const sourceVarName = pointer.pointsTo;
+        
+        if (!sourceVarName || !this.variables[sourceVarName]) {
+            this.setExplanation(`エラー: ポインタ '${pointerName}' は有効な変数を指していません。`, true);
+            return;
+        }
+        
+        const sourceVar = this.variables[sourceVarName];
+
+        await this.moveRobotTo(pointer.element);
+        this.setExplanation(`ポインタ '${pointerName}' を間接参照します...`);
+        pointer.element.classList.add('highlight');
+        await this.sleep();
+
+        this.setExplanation(`ポインタはアドレス ${pointer.value} を指しています。`);
+        await this.sleep();
+        
+        await this.moveRobotTo(sourceVar.element);
+        this.setExplanation(`アドレス ${sourceVar.address} の値 ${sourceVar.value} を取得します。`);
+        sourceVar.element.classList.add('highlight');
+        await this.sleep();
+
+        await this.moveRobotTo(targetVar.element);
+        this.setExplanation(`変数 '${varName}' に間接参照で取得した値 ${sourceVar.value} を代入します。`);
+        targetVar.element.classList.add('highlight');
+        await this.sleep();
+        
+        targetVar.value = sourceVar.value;
+        targetVar.element.querySelector('.mem-value').textContent = sourceVar.value;
+        
+        pointer.element.classList.remove('highlight');
+        sourceVar.element.classList.remove('highlight');
         targetVar.element.classList.remove('highlight');
     }
 
