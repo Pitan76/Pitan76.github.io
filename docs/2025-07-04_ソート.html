@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ソートアルゴリズム可視化ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .control-panel {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            margin-bottom: 1.5rem;
+        }
+        #visualizer-wrapper {
+            position: relative;
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 2rem 1rem 1rem;
+            min-height: 80px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        #visualizer {
+            position: relative;
+            width: 100%;
+            height: 50px;
+        }
+        .bar-container {
+            position: absolute;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 50px;
+            transition: transform 0.5s ease-in-out, left 0.5s ease-in-out;
+        }
+        .bar {
+            width: 100%;
+            background-color: #60a5fa;
+            border: 2px solid #2563eb;
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+            transition: height 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+        }
+        .bar-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-top: 8px;
+        }
+        #sorter-robot {
+            position: absolute;
+            top: -60px;
+            width: 50px;
+            height: 50px;
+            transition: left 0.5s ease-in-out;
+            z-index: 10;
+        }
+        /* State Classes */
+        .comparing .bar { background-color: #facc15; border-color: #ca8a04; }
+        .swapping .bar { border-color: #ef4444; transform: translateY(-20px) scale(1.05); }
+        .pivot .bar { background-color: #a78bfa; border-color: #7c3aed; box-shadow: 0 0 15px #a78bfa; }
+        .sorted .bar { background-color: #4ade80; border-color: #16a34a; }
+        
+        /* Responsive bar width */
+        @media (max-width: 768px) {
+            .bar-container { width: 40px; }
+            .bar-value { font-size: 1.25rem; }
+        }
+        @media (max-width: 640px) {
+            .bar-container { width: 30px; }
+            .bar-value { font-size: 1rem; }
+        }
+        @media (max-width: 480px) {
+            .bar-container { width: 25px; }
+            .bar-value { font-size: 0.875rem; }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 max-w-7xl">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold">ソートアルゴリズム可視化ツール</h1>
+        </header>
+
+        <!-- Controls -->
+        <div class="control-panel">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
+                <div>
+                    <label for="algorithm" class="block text-sm font-medium text-gray-700">アルゴリズム</label>
+                    <select id="algorithm" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                        <option value="bubbleSort">バブルソート</option>
+                        <option value="shellSort">シェルソート</option>
+                        <option value="quickSort">クイックソート</option>
+                        <option value="mergeSort">マージソート</option>
+                        <option value="heapSort">ヒープソート</option>
+                    </select>
+                </div>
+                <div class="lg:col-span-2">
+                    <label for="data-input" class="block text-sm font-medium text-gray-700">データ (カンマ区切り)</label>
+                    <div class="mt-1 flex rounded-md shadow-sm">
+                        <input type="text" id="data-input" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300 border-1-0 border" value="44, 55, 12, 42, 94, 18, 6, 67">
+                        <button id="random-btn" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm hover:bg-gray-100">ランダム</button>
+                    </div>
+                </div>
+                <div>
+                    <label for="speed" class="block text-sm font-medium text-gray-700">速度</label>
+                    <input id="speed" type="range" min="50" max="1000" value="500" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+            <div class="mt-6 flex flex-wrap gap-4 justify-center">
+                <button id="start-pause-btn" class="px-8 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors w-48 text-lg">
+                    <i class="fas fa-play mr-2"></i>ソート開始
+                </button>
+                <button id="stop-btn" class="px-8 py-3 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition-colors text-lg">
+                    <i class="fas fa-stop mr-2"></i>リセット
+                </button>
+            </div>
+        </div>
+
+        <!-- Status Panel -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-lg shadow-lg text-center">
+                <h3 class="text-xl font-semibold mb-2">実行状況</h3>
+                <p id="explanation" class="text-gray-700 min-h-[2.5em] text-lg">コントロールパネルで設定し、「ソート開始」ボタンを押してください。</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow-lg text-center">
+                 <h3 class="text-xl font-semibold mb-2">パフォーマンス</h3>
+                 <div class="flex justify-center gap-8">
+                     <div>
+                         <p class="text-lg font-bold text-blue-600" id="comparison-count">0</p>
+                         <p class="text-sm text-gray-500">比較回数</p>
+                     </div>
+                     <div>
+                         <p class="text-lg font-bold text-red-600" id="swap-count">0</p>
+                         <p class="text-sm text-gray-500">交換回数</p>
+                     </div>
+                 </div>
+            </div>
+        </div>
+
+        <!-- Visualizer -->
+        <div id="visualizer-wrapper">
+            <div id="visualizer">
+                <div id="sorter-robot">
+                    <svg viewBox="0 0 100 100">
+                        <path d="M 20 40 L 80 40 L 80 80 L 70 95 L 30 95 L 20 80 Z" fill="#d1d5db"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+class SortVisualizer {
+    constructor() {
+        // DOM Elements
+        this.visualizer = document.getElementById('visualizer');
+        this.robot = document.getElementById('sorter-robot');
+        this.startPauseBtn = document.getElementById('start-pause-btn');
+        this.stopBtn = document.getElementById('stop-btn');
+        this.randomBtn = document.getElementById('random-btn');
+        this.algoSelect = document.getElementById('algorithm');
+        this.dataInput = document.getElementById('data-input');
+        this.speedSlider = document.getElementById('speed');
+        this.explanation = document.getElementById('explanation');
+        this.comparisonCountEl = document.getElementById('comparison-count');
+        this.swapCountEl = document.getElementById('swap-count');
+
+        // State
+        this.array = [];
+        this.barContainers = [];
+        this.isSorting = false;
+        this.isPaused = false;
+        this.speed = 500;
+        this.pauseResolver = null;
+        this.comparisonCount = 0;
+        this.swapCount = 0;
+
+        this.init();
+    }
+
+    init() {
+        this.stopBtn.addEventListener('click', () => location.reload());
+        this.startPauseBtn.addEventListener('click', () => this.handleStartPause());
+        this.dataInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.reset();
+                e.preventDefault();
+            }
+        });
+        this.randomBtn.addEventListener('click', () => this.generateRandomData());
+        this.speedSlider.addEventListener('input', (e) => {
+            this.speed = 1050 - parseInt(e.target.value, 10);
+        });
+        window.addEventListener('resize', () => this.updateBarPositions());
+        this.reset();
+    }
+    
+    handleStartPause() {
+        if (!this.isSorting) {
+            this.startSort();
+        } else {
+            this.togglePause();
+        }
+    }
+
+    togglePause() {
+        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+            this.startPauseBtn.innerHTML = `<i class="fas fa-play mr-2"></i>再開`;
+            this.startPauseBtn.classList.replace('bg-yellow-500', 'bg-green-500');
+            this.explanation.textContent += ' (一時停止中)';
+        } else {
+            this.startPauseBtn.innerHTML = `<i class="fas fa-pause mr-2"></i>一時停止`;
+            this.startPauseBtn.classList.replace('bg-green-500', 'bg-yellow-500');
+            if (this.pauseResolver) this.pauseResolver();
+        }
+    }
+
+    reset() {
+        const inputText = this.dataInput.value;
+        this.array = inputText.split(/[, ]+/).map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n > 0);
+        this.updateStats(0, 0);
+        this.renderInitialBars();
+        this.explanation.textContent = 'コントロールパネルで設定し、「ソート開始」ボタンを押してください。';
+        this.setControls(true);
+        this.startPauseBtn.innerHTML = `<i class="fas fa-play mr-2"></i>ソート開始`;
+        this.startPauseBtn.classList.remove('bg-yellow-500', 'bg-green-500');
+        this.startPauseBtn.classList.add('bg-blue-600');
+    }
+
+    generateRandomData() {
+        const count = Math.floor(Math.random() * 5) + 8; // 8-12 elements
+        const randomArray = Array.from({ length: count }, () => Math.floor(Math.random() * 100) + 1);
+        this.dataInput.value = randomArray.join(', ');
+        this.reset();
+    }
+
+    setControls(enabled) {
+        this.startPauseBtn.disabled = false;
+        this.randomBtn.disabled = !enabled;
+        this.dataInput.disabled = !enabled;
+        this.algoSelect.disabled = !enabled;
+    }
+    
+    updateStats(comp, swap) {
+        if (comp !== null) this.comparisonCount = comp;
+        if (swap !== null) this.swapCount = swap;
+        this.comparisonCountEl.textContent = this.comparisonCount;
+        this.swapCountEl.textContent = this.swapCount;
+    }
+
+    renderInitialBars() {
+        this.visualizer.innerHTML = '';
+        this.barContainers = [];
+        const maxValue = Math.max(...this.array, 1);
+
+        this.array.forEach((value) => {
+            const container = document.createElement('div');
+            container.className = 'bar-container';
+            
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            bar.style.height = `${(value / maxValue) * 85 + 15}%`;
+            
+            const barValue = document.createElement('div');
+            barValue.className = 'bar-value';
+            barValue.textContent = value;
+
+            container.appendChild(bar);
+            container.appendChild(barValue);
+            this.visualizer.appendChild(container);
+            this.barContainers.push(container);
+        });
+        this.visualizer.appendChild(this.robot);
+        this.updateBarPositions();
+    }
+    
+    getBarWidth() {
+        if (window.innerWidth <= 480) return 25;
+        if (window.innerWidth <= 640) return 30;
+        if (window.innerWidth <= 768) return 40;
+        return 50;
+    }
+
+    updateBarPositions() {
+        const barWidth = this.getBarWidth();
+        const gap = barWidth / 2;
+        const totalWidth = this.barContainers.length * (barWidth + gap) - gap;
+        const startX = (this.visualizer.offsetWidth - totalWidth) / 2;
+        this.barContainers.forEach((container, index) => {
+            container.style.width = `${barWidth}px`;
+            container.style.left = `${startX + index * (barWidth + gap)}px`;
+        });
+        this.moveRobot([0]);
+    }
+
+    async sleep() {
+        if (this.isPaused) {
+            await new Promise(resolve => { this.pauseResolver = resolve; });
+        }
+        await new Promise(resolve => setTimeout(resolve, this.speed));
+    }
+
+    async startSort() {
+        if (this.isSorting) return;
+        this.isSorting = true;
+        this.setControls(false);
+        this.startPauseBtn.innerHTML = `<i class="fas fa-pause mr-2"></i>一時停止`;
+        this.startPauseBtn.classList.replace('bg-blue-600', 'bg-yellow-500');
+        
+        const algorithm = this.algoSelect.value;
+        try {
+            switch (algorithm) {
+                case 'bubbleSort': await this.bubbleSort(); break;
+                case 'shellSort': await this.shellSort(); break;
+                case 'quickSort': await this.quickSort(0, this.array.length - 1); break;
+                case 'mergeSort': await this.mergeSort(0, this.array.length - 1); break;
+                case 'heapSort': await this.heapSort(); break;
+            }
+            if (!this.isPaused) await this.finishAnimation();
+        } catch (e) {
+            console.error(e);
+        } finally {
+            this.isSorting = false;
+        }
+    }
+
+    async finishAnimation() {
+        this.explanation.textContent = 'ソートが完了しました！';
+        this.startPauseBtn.disabled = true;
+        for (const container of this.barContainers) {
+            container.classList.add('sorted');
+            await new Promise(r => setTimeout(r, 30));
+        }
+    }
+
+    // --- Visualization Helpers ---
+    highlight(indices, className) { indices.forEach(i => this.barContainers[i]?.classList.add(className)); }
+    removeHighlight(indices, className) { indices.forEach(i => this.barContainers[i]?.classList.remove(className)); }
+    
+    moveRobot(indices) {
+        if (!indices || indices.length === 0) return;
+        const firstPos = parseFloat(this.barContainers[indices[0]].style.left);
+        const lastPos = parseFloat(this.barContainers[indices[indices.length - 1]].style.left);
+        const barWidth = this.getBarWidth();
+        const targetX = firstPos + (lastPos - firstPos) / 2 - (this.robot.offsetWidth - barWidth) / 2;
+        this.robot.style.left = `${targetX}px`;
+    }
+
+    async compare(i, j) {
+        this.moveRobot([i, j]);
+        this.highlight([i, j], 'comparing');
+        this.explanation.textContent = `${this.array[i]} と ${this.array[j]} を比較します。`;
+        this.updateStats(this.comparisonCount + 1, null);
+        await this.sleep();
+        this.removeHighlight([i, j], 'comparing');
+        return this.array[i] > this.array[j];
+    }
+    
+    async swap(i, j) {
+        if (i === j) return;
+        this.moveRobot([i, j]);
+        this.explanation.textContent = `${this.array[i]} と ${this.array[j]} を交換します。`;
+        this.highlight([i, j], 'swapping');
+        this.updateStats(null, this.swapCount + 1);
+        await this.sleep();
+
+        const containerI = this.barContainers[i];
+        const containerJ = this.barContainers[j];
+        const posI = containerI.style.left;
+        const posJ = containerJ.style.left;
+
+        containerI.style.left = posJ;
+        containerJ.style.left = posI;
+
+        [this.array[i], this.array[j]] = [this.array[j], this.array[i]];
+        [this.barContainers[i], this.barContainers[j]] = [this.barContainers[j], this.barContainers[i]];
+        
+        await this.sleep();
+        this.removeHighlight([i, j], 'swapping');
+    }
+
+    // --- Algorithms ---
+    async bubbleSort() {
+        const n = this.array.length;
+        for (let i = 0; i < n - 1; i++) {
+            for (let j = 0; j < n - i - 1; j++) {
+                if (await this.compare(j, j + 1)) {
+                    await this.swap(j, j + 1);
+                }
+            }
+            this.highlight([n - 1 - i], 'sorted');
+        }
+        this.highlight([0], 'sorted');
+    }
+    
+    async shellSort() {
+        const n = this.array.length;
+        for (let gap = Math.floor(n / 2); gap > 0; gap = Math.floor(gap / 2)) {
+            this.explanation.textContent = `間隔 ${gap} で挿入ソートを行います。`;
+            for (let i = gap; i < n; i += 1) {
+                let j = i;
+                while (j >= gap && await this.compare(j - gap, j)) {
+                     await this.swap(j, j - gap);
+                     j -= gap;
+                }
+            }
+        }
+    }
+
+    async quickSort(low, high) {
+        if (low >= high) {
+            if (low >= 0 && low < this.array.length) this.highlight([low], 'sorted');
+            return;
+        }
+        let pi = await this.partition(low, high);
+        this.highlight([pi], 'sorted');
+        await Promise.all([this.quickSort(low, pi - 1), this.quickSort(pi + 1, high)]);
+    }
+
+    async partition(low, high) {
+        let pivot = this.array[high];
+        this.explanation.textContent = `範囲 [${low}...${high}] のピボットとして ${pivot} を選択。`;
+        this.highlight([high], 'pivot');
+        let i = low - 1;
+        for (let j = low; j < high; j++) {
+            this.moveRobot([j, high]);
+            this.highlight([j], 'comparing');
+            this.explanation.textContent = `${this.array[j]} とピボット ${pivot} を比較。`;
+            this.updateStats(this.comparisonCount + 1, null);
+            await this.sleep();
+            this.removeHighlight([j], 'comparing');
+            if (this.array[j] < pivot) {
+                i++;
+                await this.swap(i, j);
+            }
+        }
+        await this.swap(i + 1, high);
+        this.removeHighlight([i + 1], 'pivot');
+        return i + 1;
+    }async mergeSort(left, right) {
+    if (left >= right) return;
+
+    const mid = Math.floor((left + right) / 2);
+    await this.mergeSort(left, mid);
+    await this.mergeSort(mid + 1, right);
+    await this.merge(left, mid, right);
+}
+
+async merge(left, mid, right) {
+
+    const merged = [];
+    let i = left, j = mid + 1;
+
+    while (i <= mid && j <= right) {
+        this.updateStats(this.comparisonCount + 1, null);
+        if (this.array[i] <= this.array[j]) {
+            merged.push(this.array[i++]);
+        } else {
+            merged.push(this.array[j++]);
+        }
+    }
+    while (i <= mid) merged.push(this.array[i++]);
+    while (j <= right) merged.push(this.array[j++]);
+
+    // ここでswap()で反映していく
+    for (let idx = 0; idx < merged.length; idx++) {
+        let fromIndex = this.array.indexOf(merged[idx], left); // 安全に探す
+        if (fromIndex !== left + idx) {
+            await this.swap(fromIndex, left + idx);
+        }
+    }
+    this.explanation.textContent = `インデックス ${left}〜${right} をマージしました。`;
+    await this.sleep();
+
+}
+
+    
+    async heapSort() {
+        const n = this.array.length;
+        this.explanation.textContent = 'ヒープを構築します（最大ヒープ）。';
+        for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+            await this.heapify(n, i);
+        }
+        this.explanation.textContent = 'ヒープから要素を取り出しソートします。';
+        for (let i = n - 1; i > 0; i--) {
+            await this.swap(0, i);
+            this.highlight([i], 'sorted');
+            await this.heapify(i, 0);
+        }
+        this.highlight([0], 'sorted');
+    }
+
+    async heapify(n, i) {
+        let largest = i;
+        const l = 2 * i + 1, r = 2 * i + 2;
+        
+        if (l < n && await this.compare(largest, l)) {
+            largest = l;
+        }
+        if (r < n && await this.compare(largest, r)) {
+            largest = r;
+        }
+
+        if (largest !== i) {
+            await this.swap(i, largest);
+            await this.heapify(n, largest);
+        }
+    }
+}
+
+new SortVisualizer();
+</script>
+</body>
+</html>
