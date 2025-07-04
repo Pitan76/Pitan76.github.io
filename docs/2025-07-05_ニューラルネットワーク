@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ニューラルネットワーク可視化ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .control-panel {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            margin-bottom: 1.5rem;
+        }
+        #visualizer-wrapper {
+            position: relative;
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            min-height: 500px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            overflow: auto;
+        }
+        #visualizer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .neuron {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #1f2937;
+            background-color: #e5e7eb;
+            border: 2px solid #9ca3af;
+            transition: all 0.3s ease-in-out;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        .neuron.input { background-color: #93c5fd; border-color: #3b82f6; }
+        .neuron.hidden { background-color: #a78bfa; border-color: #7c3aed; }
+        .neuron.output { background-color: #6ee7b7; border-color: #059669; }
+        .neuron.activated {
+            box-shadow: 0 0 20px #fde047;
+            background-color: #fef08a;
+            border-color: #facc15;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        .connection {
+            position: absolute;
+            background-color: #9ca3af;
+            height: 2px;
+            transform-origin: 0 0;
+            z-index: 5;
+            transition: all 0.3s ease-in-out;
+        }
+        .connection.pulsing {
+            background-color: #f87171;
+            animation: pulse-line 0.5s;
+        }
+        @keyframes pulse-line {
+            0% { height: 2px; }
+            50% { height: 6px; }
+            100% { height: 2px; }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 max-w-7xl">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold">ニューラルネットワーク可視化ツール</h1>
+            <p class="text-gray-600 mt-2 text-lg">ニューラルネットワークのデータの流れ（順伝播）</p>
+        </header>
+
+        <!-- Controls -->
+        <div class="control-panel">
+            <h3 class="text-xl font-bold mb-4 text-center">ネットワーク構造の設計</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                <div>
+                    <label for="input-neurons" class="block text-sm font-medium text-gray-700">入力層</label>
+                    <input type="number" id="input-neurons" class="mt-1 block w-full p-2 rounded-md border-gray-300" value="2" min="1" max="5">
+                </div>
+                <div>
+                    <label for="hidden1-neurons" class="block text-sm font-medium text-gray-700">隠れ層 1</label>
+                    <input type="number" id="hidden1-neurons" class="mt-1 block w-full p-2 rounded-md border-gray-300" value="3" min="0" max="5">
+                </div>
+                <div>
+                    <label for="hidden2-neurons" class="block text-sm font-medium text-gray-700">隠れ層 2</label>
+                    <input type="number" id="hidden2-neurons" class="mt-1 block w-full p-2 rounded-md border-gray-300" value="3" min="0" max="5">
+                </div>
+                <div>
+                    <label for="output-neurons" class="block text-sm font-medium text-gray-700">出力層</label>
+                    <input type="number" id="output-neurons" class="mt-1 block w-full p-2 rounded-md border-gray-300" value="1" min="1" max="5">
+                </div>
+            </div>
+            <div class="mt-4 text-center">
+                 <button id="build-btn" class="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition-colors"><i class="fas fa-hammer mr-2"></i>ネットワーク構築</button>
+            </div>
+            <hr class="my-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div id="input-sliders" class="space-y-4">
+                    <h3 class="text-xl font-bold text-center">入力値の設定</h3>
+                    <!-- Sliders will be generated here -->
+                </div>
+                <div class="flex flex-col items-center justify-center gap-4">
+                    <button id="propagate-btn" class="px-8 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors w-full text-lg" disabled>
+                        <i class="fas fa-play mr-2"></i>順伝播を開始
+                    </button>
+                    <div>
+                        <label for="speed" class="block text-sm font-medium text-gray-700 text-center">アニメーション速度</label>
+                        <input id="speed" type="range" min="100" max="1000" value="500" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualizer & Explanation -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div id="visualizer-wrapper" class="lg:col-span-2">
+                <div id="visualizer"></div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4 border-b pb-2">プロセス解説</h3>
+                <div id="explanation-area" class="space-y-4">
+                    <p id="explanation-text" class="text-gray-700 text-lg min-h-[5em]">ネットワークを構築してください。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+class NNVisualizer {
+    constructor() {
+        // DOM Elements
+        this.visualizer = document.getElementById('visualizer');
+        this.buildBtn = document.getElementById('build-btn');
+        this.propagateBtn = document.getElementById('propagate-btn');
+        this.speedSlider = document.getElementById('speed');
+        this.explanationText = document.getElementById('explanation-text');
+        this.inputSlidersContainer = document.getElementById('input-sliders');
+
+        // Neuron Counts
+        this.neuronInputs = {
+            input: document.getElementById('input-neurons'),
+            hidden1: document.getElementById('hidden1-neurons'),
+            hidden2: document.getElementById('hidden2-neurons'),
+            output: document.getElementById('output-neurons'),
+        };
+
+        // State
+        this.layers = [];
+        this.connections = [];
+        this.speed = 500;
+        this.isAnimating = false;
+
+        this.init();
+    }
+
+    init() {
+        this.buildBtn.addEventListener('click', () => this.buildNetwork());
+        this.propagateBtn.addEventListener('click', () => this.handlePropagation());
+        this.speedSlider.addEventListener('input', (e) => {
+            this.speed = 1100 - parseInt(e.target.value, 10);
+        });
+        this.buildNetwork();
+    }
+
+    setExplanation(text, highlight = false) {
+        this.explanationText.innerHTML = text;
+        this.explanationText.className = `text-lg transition-all duration-200 ${highlight ? 'text-blue-600 font-bold' : 'text-gray-700'}`;
+    }
+
+    async sleep() { await new Promise(resolve => setTimeout(resolve, this.speed)); }
+
+    buildNetwork() {
+        if (this.isAnimating) return;
+        this.visualizer.innerHTML = '';
+        this.layers = [];
+        this.connections = [];
+
+        const counts = {
+            input: parseInt(this.neuronInputs.input.value),
+            hidden1: parseInt(this.neuronInputs.hidden1.value),
+            hidden2: parseInt(this.neuronInputs.hidden2.value),
+            output: parseInt(this.neuronInputs.output.value),
+        };
+
+        const layerDefinitions = [
+            { count: counts.input, type: 'input', label: 'I' },
+            { count: counts.hidden1, type: 'hidden', label: 'H1' },
+            { count: counts.hidden2, type: 'hidden', label: 'H2' },
+            { count: counts.output, type: 'output', label: 'O' },
+        ].filter(l => l.count > 0);
+
+        const layerSpacing = this.visualizer.offsetWidth / (layerDefinitions.length + 1);
+
+        // Create neurons
+        layerDefinitions.forEach((layerDef, layerIndex) => {
+            const layer = [];
+            const x = layerSpacing * (layerIndex + 1);
+            const neuronSpacing = this.visualizer.offsetHeight / (layerDef.count + 1);
+            for (let i = 0; i < layerDef.count; i++) {
+                const y = neuronSpacing * (i + 1);
+                const neuron = {
+                    id: `${layerDef.label}-${i}`,
+                    value: 0,
+                    activated: false,
+                    element: null,
+                    x, y,
+                    type: layerDef.type,
+                };
+                layer.push(neuron);
+                this.createNeuronElement(neuron);
+            }
+            this.layers.push(layer);
+        });
+
+        // Create connections
+        for (let i = 0; i < this.layers.length - 1; i++) {
+            for (const fromNode of this.layers[i]) {
+                for (const toNode of this.layers[i + 1]) {
+                    const connection = {
+                        from: fromNode,
+                        to: toNode,
+                        weight: Math.random() * 2 - 1, // Random weight between -1 and 1
+                        element: null,
+                    };
+                    this.connections.push(connection);
+                    this.createConnectionElement(connection);
+                }
+            }
+        }
+        this.buildInputSliders();
+        this.propagateBtn.disabled = false;
+        this.setExplanation('ネットワークが構築されました。入力値を設定して順伝播を開始してください。');
+    }
+
+    createNeuronElement(neuron) {
+        const el = document.createElement('div');
+        el.id = neuron.id;
+        el.className = `neuron ${neuron.type}`;
+        el.style.left = `${neuron.x}px`;
+        el.style.top = `${neuron.y}px`;
+        el.textContent = neuron.id;
+        neuron.element = el;
+        this.visualizer.appendChild(el);
+    }
+    
+    createConnectionElement(connection) {
+        const line = document.createElement('div');
+        line.className = 'connection';
+        const from = connection.from;
+        const to = connection.to;
+        const length = Math.sqrt((to.x - from.x) ** 2 + (to.y - from.y) ** 2);
+        const angle = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
+        line.style.width = `${length}px`;
+        line.style.left = `${from.x}px`;
+        line.style.top = `${from.y}px`;
+        line.style.transform = `rotate(${angle}deg)`;
+        connection.element = line;
+        this.visualizer.insertBefore(line, this.visualizer.firstChild);
+    }
+
+    buildInputSliders() {
+        this.inputSlidersContainer.innerHTML = '<h3 class="text-xl font-bold text-center">入力値の設定</h3>';
+        const inputLayer = this.layers[0];
+        inputLayer.forEach(neuron => {
+            const sliderWrapper = document.createElement('div');
+            const label = document.createElement('label');
+            label.textContent = `入力 ${neuron.id}: `;
+            const valueSpan = document.createElement('span');
+            valueSpan.textContent = "0.50";
+            label.appendChild(valueSpan);
+            
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = 0;
+            slider.max = 1;
+            slider.step = 0.01;
+            slider.value = 0.5;
+            slider.className = 'w-full';
+            slider.addEventListener('input', () => {
+                neuron.value = parseFloat(slider.value);
+                valueSpan.textContent = neuron.value.toFixed(2);
+                neuron.element.textContent = neuron.value.toFixed(2);
+            });
+            
+            sliderWrapper.appendChild(label);
+            sliderWrapper.appendChild(slider);
+            this.inputSlidersContainer.appendChild(sliderWrapper);
+            neuron.value = 0.5; // Initial value
+        });
+    }
+
+    async handlePropagation() {
+        if (this.isAnimating) return;
+        this.isAnimating = true;
+        this.propagateBtn.disabled = true;
+        this.buildBtn.disabled = true;
+
+        // Reset states
+        this.layers.forEach(layer => layer.forEach(n => {
+            n.activated = false;
+            n.element.classList.remove('activated');
+            if (n.type !== 'input') n.element.textContent = n.id;
+        }));
+
+        // Activate input layer
+        this.setExplanation('入力層から値を受け取ります。');
+        for (const neuron of this.layers[0]) {
+            neuron.activated = neuron.value > 0;
+            if (neuron.activated) {
+                neuron.element.classList.add('activated');
+            }
+        }
+        await this.sleep();
+
+        // Propagate through layers
+        for (let i = 0; i < this.layers.length - 1; i++) {
+            const fromLayer = this.layers[i];
+            const toLayer = this.layers[i+1];
+            
+            for (const toNode of toLayer) {
+                let weightedSum = 0;
+                this.setExplanation(`ニューロン ${toNode.id} への入力を計算中...`);
+                
+                for (const fromNode of fromLayer) {
+                    if (fromNode.activated) {
+                        const connection = this.connections.find(c => c.from === fromNode && c.to === toNode);
+                        if (connection) {
+                            connection.element.classList.add('pulsing');
+                            weightedSum += fromNode.value * connection.weight;
+                        }
+                    }
+                }
+                await this.sleep();
+
+                // Simple activation function (Threshold)
+                toNode.activated = weightedSum > 0.5; // Simplified threshold
+                toNode.value = weightedSum; // Store the sum for potential display
+                
+                if (toNode.activated) {
+                    this.setExplanation(`ニューロン ${toNode.id} が発火しました！ (合計入力: ${weightedSum.toFixed(2)})`, true);
+                    toNode.element.classList.add('activated');
+                    toNode.element.textContent = weightedSum.toFixed(2);
+                } else {
+                    this.setExplanation(`ニューロン ${toNode.id} は発火しませんでした。 (合計入力: ${weightedSum.toFixed(2)})`);
+                }
+                
+                this.connections.forEach(c => c.element.classList.remove('pulsing'));
+                await this.sleep();
+            }
+        }
+        
+        this.setExplanation('順伝播が完了しました。出力層の結果を確認してください。');
+        this.isAnimating = false;
+        this.propagateBtn.disabled = false;
+        this.buildBtn.disabled = false;
+    }
+}
+
+new NNVisualizer();
+</script>
+</body>
+</html>
