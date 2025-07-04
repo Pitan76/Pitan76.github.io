@@ -422,8 +422,13 @@ class PointerVisualizer {
         const existingBoxes = this.visualizer.querySelectorAll('.memory-box').length - 1;
         const containerWidth = this.visualizer.offsetWidth;
         const containerHeight = this.visualizer.offsetHeight;
-        const x = (existingBoxes % 4) * 140 + 50;
-        const y = Math.floor(existingBoxes / 4) * 120 + 50;
+        
+        // 画面幅に応じて1行に配置する箱の数を決定
+        const boxWidth = 140; // 箱の幅 + マージン
+        const maxBoxesPerRow = Math.max(1, Math.floor((containerWidth - 100) / boxWidth));
+        
+        const x = (existingBoxes % maxBoxesPerRow) * boxWidth + 50;
+        const y = Math.floor(existingBoxes / maxBoxesPerRow) * 120 + 50;
         box.style.left = `${x}px`;
         box.style.top = `${y}px`;
     }
