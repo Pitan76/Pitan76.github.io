@@ -67,7 +67,8 @@
             z-index: 10;
         }
         .neuron.input { background-color: #93c5fd; border-color: #3b82f6; }
-        .neuron.middle { background-color: #fde047; border-color: #eab308; } /* Yellow */
+        /* BUG FIX: Renamed .hidden to .intermediate to avoid conflict with TailwindCSS */
+        .neuron.intermediate { background-color: #fde047; border-color: #eab308; } /* Yellow */
         .neuron.output { background-color: #6ee7b7; border-color: #059669; }
         .neuron.activated {
             box-shadow: 0 0 20px #fde047;
@@ -256,13 +257,14 @@ class NNVisualizer {
         
         const layerDefinitions = [
             { count: parseInt(this.neuronInputs.input.value), type: 'input', label: '入力層' },
+            // BUG FIX: Changed type from 'hidden' to 'intermediate'
             ...hiddenLayerInputs.map((input, i) => ({
                 count: parseInt(input.value),
-                type: 'hidden',
+                type: 'intermediate',
                 label: `中間層 ${i + 1}`
             })),
             { count: parseInt(this.neuronInputs.output.value), type: 'output', label: '出力層' },
-        ].filter(l => l.count > 0);
+        ].filter(l => l.count > 0 && !isNaN(l.count));
 
         const layerSpacing = this.visualizer.offsetWidth / (layerDefinitions.length + 1);
 
@@ -317,16 +319,7 @@ class NNVisualizer {
     createNeuronElement(neuron) {
         const el = document.createElement('div');
         el.id = neuron.id;
-        // BUG FIX: Rewrote class assignment to be more explicit and robust.
-        let classes = 'neuron';
-        if (neuron.type === 'input') {
-            classes += ' input';
-        } else if (neuron.type === 'hidden') {
-            classes += ' middle';
-        } else if (neuron.type === 'output') {
-            classes += ' output';
-        }
-        el.className = classes;
+        el.className = `neuron ${neuron.type}`;
         el.style.left = `${neuron.x}px`;
         el.style.top = `${neuron.y}px`;
         el.textContent = neuron.id;
