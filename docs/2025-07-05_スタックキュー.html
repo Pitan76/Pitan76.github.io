@@ -47,6 +47,7 @@
             padding: 0.5rem;
             cursor: pointer;
             min-width: 120px;
+            user-select: none; /* Prevent text selection */
         }
         .structure-title {
             font-weight: bold;
@@ -188,25 +189,199 @@
             border-bottom: 1px solid #374151;
         }
 
+        /* Mobile floating controls */
+        .mobile-floating-controls {
+            display: none;
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .mobile-input-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .mobile-buttons-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .mobile-input-field {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            font-family: 'Roboto Mono', monospace;
+            transition: all 0.2s ease;
+        }
+
+        .mobile-input-field:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+
+        .mobile-input-field::placeholder {
+            color: rgba(0, 0, 0, 0.5);
+        }
+
+        .mobile-create-btn {
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 8px;
+            background: #10b981;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .mobile-create-btn:active {
+            transform: scale(0.95);
+        }
+
+        .mobile-add-button {
+            width: 60px;
+            height: 60px;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        .mobile-add-button:active {
+            transform: scale(0.95);
+        }
+
+        .mobile-add-button:hover {
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .mobile-add-button.stack-btn {
+            background: rgba(37, 99, 235, 0.9);
+            color: white;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+
+        .mobile-add-button.stack-btn:hover {
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+        }
+
+        .mobile-add-button.queue-btn {
+            background: rgba(124, 58, 237, 0.9);
+            color: white;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+        }
+
+        .mobile-add-button.queue-btn:hover {
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+        }
+        
+        .mobile-buttons-row {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        
+        .mobile-add-btn {
+            flex: 1;
+            max-width: 120px;
+            height: 48px;
+            border-radius: 1.5rem;
+            border: none;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .mobile-add-btn.stack-btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+        
+        .mobile-add-btn.queue-btn {
+            background: linear-gradient(135deg, #8b5cf6, #5b21b6);
+        }
+        
+        .mobile-add-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+
         /* Responsive adjustments for very small screens */
+        @media (max-width: 768px) {
+            .structure-controls {
+                display: none !important; /* Hide desktop control panel completely */
+            }
+            .mobile-floating-controls {
+                display: flex !important; /* Show mobile floating controls */
+            }
+            .main-content-mobile {
+                flex-direction: column !important;
+            }
+            .workspace-mobile {
+                width: 100% !important;
+                height: 100vh !important;
+                padding-top: 100px !important; /* Space for floating controls */
+            }
+            #log-panel {
+                display: none !important; /* Hide log panel on mobile */
+            }
+        }
+
         @media (max-width: 480px) {
             .structure-controls {
-                width: 240px !important;
-                padding: 0.75rem !important;
+                padding: 0.5rem !important;
+                border-radius: 0.75rem;
             }
-            .control-title {
-                font-size: 1rem !important;
-            }
-            .data-structure-title {
-                font-size: 0.875rem !important;
+            .workspace-mobile {
+                padding-top: 80px !important;
             }
             .add-button {
-                font-size: 0.75rem !important;
-                padding: 0.375rem 0.75rem !important;
+                width: 44px !important;
+                height: 44px !important;
+                min-width: 44px !important;
+                border-radius: 10px !important;
             }
-            .add-button i {
-                margin-right: 0.25rem !important;
-            }
+        }
+
+        /* Structure z-index management */
+        .structure {
+            z-index: 1;
+        }
+        .structure.active {
+            z-index: 100;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3) !important;
+            transform: scale(1.02);
+            transition: all 0.2s ease;
         }
     
     
@@ -214,32 +389,48 @@
 </head>
 <body class="flex flex-col h-screen">
 
+    <!-- Mobile Floating Controls -->
+    <div class="mobile-floating-controls">
+        <div class="mobile-input-row">
+            <input type="text" id="mobile-element-input" class="mobile-input-field" placeholder="要素を入力...">
+            <button id="mobile-create-element-btn" class="mobile-create-btn"><i class="fas fa-plus"></i></button>
+        </div>
+        <div class="mobile-buttons-row">
+            <button id="mobile-add-stack-btn" class="mobile-add-button stack-btn" title="スタック追加">
+                <i class="fas fa-layer-group"></i>
+            </button>
+            <button id="mobile-add-queue-btn" class="mobile-add-button queue-btn" title="キュー追加">
+                <i class="fas fa-arrow-right-long"></i>
+            </button>
+        </div>
+    </div>
+
     <!-- Main Content -->
-    <div class="flex-grow flex">
+    <div class="flex-grow flex main-content-mobile">
         <!-- Controls -->
-        <div class="structure-controls w-80 lg:w-80 md:w-72 sm:w-64 xs:w-60 bg-white p-4 shadow-lg flex flex-col">
-            <h2 class="control-title text-xl lg:text-xl md:text-xl sm:text-lg font-bold mb-3 border-b pb-2">コントロールパネル</h2>
+        <div class="structure-controls w-80 md:w-72 sm:w-64 bg-white p-4 shadow-lg flex flex-col">
+            <h2 class="control-title text-xl md:text-lg sm:text-base font-bold mb-3 border-b pb-2">コントロールパネル</h2>
             <div class="space-y-4">
-                <div>
-                    <label for="element-input" class="block text-sm font-medium text-gray-700">要素の値</label>
+                <div class="mobile-input-container">
+                    <label for="element-input" class="element-input-label block text-sm font-medium text-gray-700">要素の値</label>
                     <div class="mt-1 flex gap-2">
                         <input type="text" id="element-input" class="mono flex-1 min-w-0 block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm text-sm" placeholder="Apple">
                         <button id="create-element-btn" class="px-3 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700"><i class="fas fa-plus"></i></button>
                     </div>
                 </div>
-                <hr>
+                <hr class="desktop-only">
                 <div>
-                    <h3 class="data-structure-title text-lg lg:text-lg md:text-base sm:text-sm font-bold mb-2">データ構造</h3>
-                    <div class="flex gap-1 lg:gap-2">
-                        <button id="add-stack-btn" class="add-button flex-1 px-3 lg:px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 text-xs lg:text-sm whitespace-nowrap overflow-hidden"><i class="fas fa-layer-group mr-1 lg:mr-2"></i><span class="hidden xs:inline">スタック</span><span class="xs:hidden">S</span>追加</button>
-                        <button id="add-queue-btn" class="add-button flex-1 px-3 lg:px-4 py-2 bg-purple-600 text-white font-semibold rounded-md hover:bg-purple-700 text-xs lg:text-sm whitespace-nowrap overflow-hidden"><i class="fas fa-arrow-right-long mr-1 lg:mr-2"></i><span class="hidden xs:inline">キュー</span><span class="xs:hidden">Q</span>追加</button>
+                    <h3 class="data-structure-title text-lg md:text-base sm:text-sm font-bold mb-2">データ構造</h3>
+                    <div class="flex gap-1 lg:gap-2 mobile-button-container">
+                        <button id="add-stack-btn" class="add-button stack-btn flex-1 px-4 lg:px-5 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 text-xs lg:text-sm whitespace-nowrap overflow-hidden"><i class="fas fa-layer-group mr-1 lg:mr-2"></i><span class="hidden xs:inline">スタック</span><span class="xs:hidden">S</span>追加</button>
+                        <button id="add-queue-btn" class="add-button queue-btn flex-1 px-2 lg:px-3 py-2 bg-purple-600 text-white font-semibold rounded-md hover:bg-purple-700 text-xs lg:text-sm whitespace-nowrap overflow-hidden"><i class="fas fa-arrow-right-long mr-1 lg:mr-2"></i><span class="hidden xs:inline">キュー</span><span class="xs:hidden">Q</span>追加</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Workspace -->
-        <div id="workspace" class="flex-grow">
+        <div id="workspace" class="flex-grow workspace-mobile">
             <!-- Structures will be added here -->
         </div>
     </div>
@@ -264,6 +455,12 @@ class Visualizer {
         this.addStackBtn = document.getElementById('add-stack-btn');
         this.addQueueBtn = document.getElementById('add-queue-btn');
 
+        // Mobile controls
+        this.mobileElementInput = document.getElementById('mobile-element-input');
+        this.mobileCreateElementBtn = document.getElementById('mobile-create-element-btn');
+        this.mobileAddStackBtn = document.getElementById('mobile-add-stack-btn');
+        this.mobileAddQueueBtn = document.getElementById('mobile-add-queue-btn');
+
         this.structures = [];
         this.floatingData = null;
         this.structureCounter = 0;
@@ -287,13 +484,61 @@ class Visualizer {
         this.addStackBtn.addEventListener('click', () => this.addStructure('stack'));
         this.addQueueBtn.addEventListener('click', () => this.addStructure('queue'));
         
+        // Mobile event listeners
+        if (this.mobileCreateElementBtn) {
+            this.mobileCreateElementBtn.addEventListener('click', () => this.handleMobileCreateElement());
+        }
+        if (this.mobileElementInput) {
+            this.mobileElementInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') this.handleMobileCreateElement();
+            });
+        }
+        if (this.mobileAddStackBtn) {
+            this.mobileAddStackBtn.addEventListener('click', () => this.addStructure('stack'));
+        }
+        if (this.mobileAddQueueBtn) {
+            this.mobileAddQueueBtn.addEventListener('click', () => this.addStructure('queue'));
+        }
+        
         document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         document.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
         this.workspace.addEventListener('click', (e) => this.handleWorkspaceClick(e));
         this.workspace.addEventListener('touchend', (e) => this.handleWorkspaceTouchEnd(e));
+        
+        // Handle window resize to adjust layout
+        window.addEventListener('resize', () => this.handleResize());
+    }
+
+    handleResize() {
+        // Reposition structures if they're outside the visible area after resize
+        this.structures.forEach(structure => {
+            const workspaceRect = this.workspace.getBoundingClientRect();
+            const element = structure.element;
+            const rect = element.getBoundingClientRect();
+            
+            const isMobile = window.innerWidth <= 768;
+            const topOffset = isMobile ? 130 : 20;
+            
+            let x = parseInt(element.style.left);
+            let y = parseInt(element.style.top);
+            
+            // Adjust if outside bounds
+            if (x + rect.width > workspaceRect.width) {
+                x = Math.max(20, workspaceRect.width - rect.width - 20);
+                element.style.left = `${x}px`;
+            }
+            if (y + rect.height > workspaceRect.height) {
+                y = Math.max(topOffset, workspaceRect.height - rect.height - 20);
+                element.style.top = `${y}px`;
+            }
+            if (y < topOffset) {
+                element.style.top = `${topOffset}px`;
+            }
+        });
     }
 
     log(message) {
+        if (!this.logPanel) return; // Guard for mobile where log panel might not exist
         const entry = document.createElement('div');
         entry.className = 'log-entry';
         const time = new Date().toLocaleTimeString('ja-JP');
@@ -314,12 +559,26 @@ class Visualizer {
         this.elementInput.value = '';
     }
 
+    handleMobileCreateElement() {
+        if (this.floatingData) return;
+        const value = this.mobileElementInput.value.trim();
+        if (!value) return;
+
+        this.floatingData = { value };
+        this.floatingElement.innerHTML = `<div class="data-element">${value}</div>`;
+        this.floatingElement.classList.remove('hidden');
+        this.log(`要素 '${value}' を作成しました。`);
+        this.mobileElementInput.value = '';
+    }
+
     handleMouseMove(e) {
         if (this.floatingData) {
             this.floatingElement.style.left = `${e.clientX}px`;
             this.floatingElement.style.top = `${e.clientY}px`;
         }
         if (this.dragState.isDragging) {
+            e.preventDefault(); // Prevent text selection while dragging
+            
             const workspaceRect = this.workspace.getBoundingClientRect();
             let newX = e.clientX - workspaceRect.left - this.dragState.offsetX;
             let newY = e.clientY - workspaceRect.top - this.dragState.offsetY;
@@ -380,8 +639,32 @@ class Visualizer {
         };
         
         structure.element.className = 'structure';
-        structure.element.style.left = `${(id % 5) * 150 + 20}px`;
-        structure.element.style.top = `${Math.floor((id-1)/5) * 150 + 20}px`;
+        
+        // Calculate position based on workspace size to ensure visibility
+        const workspaceRect = this.workspace.getBoundingClientRect();
+        const structureWidth = 120; // min-width from CSS
+        const structureHeight = 100; // estimated height
+        
+        // For mobile, account for floating control panel
+        const isMobile = window.innerWidth <= 768;
+        const topOffset = isMobile ? 130 : 20; // Extra space for floating panel on mobile
+        
+        // Calculate grid position that fits within workspace
+        const maxCols = Math.floor((workspaceRect.width - 40) / 150) || 1;
+        const col = ((id - 1) % maxCols);
+        const row = Math.floor((id - 1) / maxCols);
+        
+        let x = col * 150 + 20;
+        let y = row * 120 + topOffset;
+        
+        // Ensure the structure stays within bounds
+        x = Math.min(x, workspaceRect.width - structureWidth - 20);
+        y = Math.min(y, workspaceRect.height - structureHeight - 20);
+        x = Math.max(x, 20);
+        y = Math.max(y, topOffset);
+        
+        structure.element.style.left = `${x}px`;
+        structure.element.style.top = `${y}px`;
         
         const title = document.createElement('div');
         title.className = 'structure-title';
@@ -433,7 +716,13 @@ class Visualizer {
     }
     
     handleDragStart(e, element) {
+        e.preventDefault(); // Prevent text selection
         e.stopPropagation();
+        
+        // Disable text selection during drag
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+        
         this.dragState.isDragging = true;
         this.dragState.element = element;
         this.dragState.offsetX = e.clientX - element.getBoundingClientRect().left;
@@ -452,11 +741,18 @@ class Visualizer {
     
     handleDragEnd() {
         this.dragState.isDragging = false;
+        
+        // Re-enable text selection after drag
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
     }
 
     handleStructureClick(id) {
         const structure = this.structures.find(s => s.id === id);
         if (!structure) return;
+
+        // Bring clicked structure to front
+        this.bringToFront(structure);
 
         if (this.floatingData) {
             if (structure.type === 'stack') {
@@ -483,6 +779,16 @@ class Visualizer {
             this.floatingElement.classList.remove('hidden');
         }
         this.renderStructure(id);
+    }
+
+    bringToFront(activeStructure) {
+        // Remove active class from all structures
+        this.structures.forEach(structure => {
+            structure.element.classList.remove('active');
+        });
+        
+        // Add active class to clicked structure
+        activeStructure.element.classList.add('active');
     }
 
     renderStructure(id) {
