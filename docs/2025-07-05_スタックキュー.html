@@ -64,23 +64,55 @@
             border-top: none; /* Make top open */
             border-radius: 0 0 0.25rem 0.25rem;
         }
+        .queue-container {
+            position: relative;
+            padding-right: 20px; /* Space for arrowhead */
+        }
         .queue-body {
+            position: relative;
             display: flex;
             flex-direction: row;
             gap: 0.5rem;
             min-width: 50px;
             min-height: 66px; /* data-element height + padding */
             padding: 0.5rem;
-            border-top: 2px solid #4b5563;
-            border-bottom: 2px solid #4b5563;
         }
-        .queue-arrow {
+        .queue-body::before, .queue-body::after {
+            content: '';
             position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 1.5rem;
-            color: #4b5563;
+            left: 0;
+            right: -10px; /* Extend to arrowhead */
+            height: 2px;
+            background-color: #4b5563;
         }
+        .queue-body::before { top: 0; }
+        .queue-body::after { bottom: 0; }
+        
+        .queue-arrowhead {
+            position: absolute;
+            right: -20px;
+            top: 0;
+            bottom: 0;
+            width: 10px;
+        }
+        .queue-arrowhead::before, .queue-arrowhead::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+        }
+        .queue-arrowhead::before {
+             top: -2px;
+             border-width: 35px 0 0 15px;
+             border-color: transparent transparent transparent #4b5563;
+        }
+        .queue-arrowhead::after {
+             bottom: -2px;
+             border-width: 0 0 35px 15px;
+             border-color: transparent transparent #4b5563 transparent;
+        }
+
         .data-element {
             padding: 0.5rem 1rem;
             background-color: #60a5fa;
@@ -279,26 +311,24 @@ class Visualizer {
         const dragger = document.createElement('div');
         dragger.className = 'structure-dragger';
 
+        const bodyWrapper = document.createElement('div');
+        if (type === 'queue') {
+            bodyWrapper.className = 'queue-container';
+        }
+
         const body = document.createElement('div');
         body.className = type === 'stack' ? 'stack-body' : 'queue-body';
         
+        bodyWrapper.appendChild(body);
+        
         structure.element.appendChild(dragger);
         structure.element.appendChild(title);
-        structure.element.appendChild(body);
+        structure.element.appendChild(bodyWrapper);
 
         if (type === 'queue') {
-            const inArrow = document.createElement('div');
-            inArrow.className = 'queue-arrow';
-            inArrow.style.right = '-20px';
-            inArrow.innerHTML = '<i class="fas fa-arrow-left"></i>';
-            
-            const outArrow = document.createElement('div');
-            outArrow.className = 'queue-arrow';
-            outArrow.style.left = '-20px';
-            outArrow.innerHTML = '<i class="fas fa-arrow-right"></i>';
-
-            structure.element.appendChild(inArrow);
-            structure.element.appendChild(outArrow);
+            const arrowhead = document.createElement('div');
+            arrowhead.className = 'queue-arrowhead';
+            bodyWrapper.appendChild(arrowhead);
         }
         
         this.workspace.appendChild(structure.element);
@@ -331,8 +361,8 @@ class Visualizer {
             if (structure.type === 'stack') {
                 structure.elements.push(this.floatingData.value);
                 this.log(`'${this.floatingData.value}' を ${structure.name} に Push しました。`);
-            } else {
-                structure.elements.push(this.floatingData.value);
+            } else { // queue
+                structure.elements.unshift(this.floatingData.value);
                 this.log(`'${this.floatingData.value}' を ${structure.name} に Enqueue しました。`);
             }
             this.floatingData = null;
@@ -343,8 +373,8 @@ class Visualizer {
             if (structure.type === 'stack') {
                 value = structure.elements.pop();
                 this.log(`'${value}' を ${structure.name} から Pop しました。`);
-            } else {
-                value = structure.elements.shift();
+            } else { // queue
+                value = structure.elements.pop();
                 this.log(`'${value}' を ${structure.name} から Dequeue しました。`);
             }
             this.floatingData = { value };
@@ -369,7 +399,7 @@ class Visualizer {
             if (structure.type === 'stack' && index < structure.elements.length - 1) {
                 el.classList.add('inactive');
             }
-            if (structure.type === 'queue' && index > 0) {
+            if (structure.type === 'queue' && index < structure.elements.length - 1) {
                 el.classList.add('inactive');
             }
             
