@@ -9,8 +9,8 @@
     <!-- PWA対応 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Home">
-    <link rel="apple-touch-icon" href="https://placehold.co/180x180/000000/FFFFFF?text=Home">
+    <meta name="apple-mobile-web-app-title" content="pitan76 docs">
+    <link rel="apple-touch-icon" href="https://placehold.co/180x180/2A2A2A/FFFFFF?text=Pitq\ndocs&font=raleway">
     <link rel="manifest" href="manifest.json">
 
     <!-- Bootstrap CSS -->
@@ -110,8 +110,12 @@
                 const listItem = document.createElement('a');
                 listItem.href = `https://pitan76.github.io/docs/${name}`;
                 listItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-                listItem.target = '_blank';
-                listItem.rel = 'noopener noreferrer';
+                
+                // PWA (standalone) モードでない場合のみtarget="_blank"を設定
+                if (window.matchMedia('(display-mode: browser)').matches) {
+                    listItem.target = '_blank';
+                    listItem.rel = 'noopener noreferrer';
+                }
 
                 const fileName = document.createElement('span');
                 fileName.textContent = name;
