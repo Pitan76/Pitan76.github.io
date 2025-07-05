@@ -70,7 +70,8 @@
         const GITHUB_REPO = 'Pitan76.github.io';
         const FOLDER_PATH = 'docs';
         const BRANCH = 'main';
-        const API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FOLDER_PATH}?ref=${BRANCH}`;
+        //const API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FOLDER_PATH}?ref=${BRANCH}`;
+        const API_URL = 'https://pitan76.github.io/docs/index.json';
         
         // キャッシュ設定 (ミリ秒単位: 1時間)
         const CACHE_KEY = `github_repo_cache_${GITHUB_OWNER}_${GITHUB_REPO}_${FOLDER_PATH}`;
@@ -84,34 +85,30 @@
 
         /**
          * ファイルリストを画面に描画する関数
-         * @param {Array} files - GitHub APIから取得したファイル情報の配列
+         * @param {Array} files - index.json の配列
          */
         function renderFiles(files) {
-            fileListEl.innerHTML = ''; // 既存のリストをクリア
+            fileListEl.innerHTML = '';
 
-            const htmlFiles = files
-                .filter(file => 
-                    file.type === 'file' && 
-                    file.name.endsWith('.html') && 
-                    file.name !== 'index.html'
-                )
-                .sort((a, b) => a.name.localeCompare(b.name)); // 名前順でソート
-
-            if (htmlFiles.length === 0) {
+            if (!Array.isArray(files) || files.length === 0) {
                 fileListEl.innerHTML = '<p class="text-center text-muted p-3">表示対象のHTMLファイルが見つかりませんでした。</p>';
                 return;
             }
 
-            htmlFiles.forEach(file => {
+            // filesは ["file1.html", "file2.html", ...] の想定
+            files
+            .filter(name => name.endsWith('.html') && name !== 'index.html')
+            .sort((a, b) => a.localeCompare(b))
+            .forEach(name => {
                 const listItem = document.createElement('a');
-                listItem.href = `https://pitan76.github.io/docs/${file.name}`; // GitHub PagesのURL
+                listItem.href = `https://pitan76.github.io/docs/${name}`;
                 listItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
                 listItem.target = '_blank';
                 listItem.rel = 'noopener noreferrer';
 
                 const fileName = document.createElement('span');
-                fileName.textContent = file.name;
-                
+                fileName.textContent = name;
+
                 const icon = document.createElement('i');
                 icon.className = 'bi bi-box-arrow-up-right';
 
