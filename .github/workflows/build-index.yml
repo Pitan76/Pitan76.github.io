@@ -16,7 +16,7 @@ jobs:
         run: |
           cd docs
           echo '[' > index.json
-          find . -type f -name "*.html" ! -name "index.html" | sort | sed 's|^\./||' | jq -R . | paste -sd, - >> index.json
+          find . -type f -name "*.html" ! -name "index.html" | sort | sed 's|^\./||' | jq -R . | jq -s '.' > index.json
           echo ']' >> index.json
       - name: Commit and push
         run: |
