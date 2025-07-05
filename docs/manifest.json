@@ -34,7 +34,7 @@
   "display_override": ["window-controls-overlay", "standalone"],
   "shortcuts": [
     {
-      "name": "スタック・キュー学習",
+      "name": "データ構造スペース",
       "short_name": "データ構造",
       "description": "スタックとキューの可視化ツール",
       "url": "./2025-07-05_スタックキュー.html",
