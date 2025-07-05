@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微分・積分 可視化ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.5.0/math.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .tab-button {
+            transition: all 0.2s ease-in-out;
+        }
+        .tab-button.active {
+            border-bottom-color: #4f46e5;
+            color: #4f46e5;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 max-w-7xl">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold">微分・積分 可視化ツール</h1>
+            <p class="text-gray-600 mt-2 text-lg">関数の振る舞いをインタラクティブに学びましょう。</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Controls -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4 border-b pb-2">設定パネル</h3>
+                
+                <!-- Mode Tabs -->
+                <div class="flex border-b mb-4">
+                    <button id="diff-tab" class="tab-button flex-1 py-2 text-center border-b-2">微分 (接線)</button>
+                    <button id="int-tab" class="tab-button flex-1 py-2 text-center border-b-2">積分 (面積)</button>
+                </div>
+
+                <!-- Function Input -->
+                <div class="mb-4">
+                    <label for="function-input" class="block text-sm font-medium text-gray-700">関数 f(x)</label>
+                    <input type="text" id="function-input" class="mono mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500" value="x^2">
+                </div>
+                <div id="error-message" class="text-red-500 text-sm mb-4"></div>
+
+                <!-- Differentiation Controls -->
+                <div id="diff-controls" class="space-y-4">
+                    <div>
+                        <label for="x-slider" class="block text-sm font-medium text-gray-700">x の値: <span id="x-value-label" class="font-bold">0</span></label>
+                        <input type="range" id="x-slider" min="-5" max="5" step="0.1" value="0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div class="p-4 bg-gray-100 rounded-lg text-center">
+                        <p class="text-sm text-gray-600">xにおける傾き (f'(x))</p>
+                        <p id="derivative-value" class="text-2xl font-bold text-indigo-600">0.00</p>
+                    </div>
+                </div>
+
+                <!-- Integration Controls -->
+                <div id="int-controls" class="hidden space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="a-input" class="block text-sm font-medium text-gray-700">範囲 a</label>
+                            <input type="number" id="a-input" value="-2" step="0.1" class="mono mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm">
+                        </div>
+                         <div>
+                            <label for="b-input" class="block text-sm font-medium text-gray-700">範囲 b</label>
+                            <input type="number" id="b-input" value="2" step="0.1" class="mono mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm">
+                        </div>
+                    </div>
+                     <div>
+                        <label for="n-slider" class="block text-sm font-medium text-gray-700">分割数 (n): <span id="n-value-label" class="font-bold">50</span></label>
+                        <input type="range" id="n-slider" min="1" max="200" step="1" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div class="p-4 bg-gray-100 rounded-lg text-center space-y-2">
+                        <div>
+                            <p class="text-sm text-gray-600">区間 [a, b] の面積 (リーマン和)</p>
+                            <p id="integral-value" class="text-2xl font-bold text-indigo-600">0.00</p>
+                        </div>
+                        <div id="integral-formula" class="mono text-left text-sm pt-2 border-t border-gray-300">
+                            <!-- Formula will be injected here -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Visualizer -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-lg">
+                <canvas id="calculus-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+<script>
+class CalculusVisualizer {
+    constructor() {
+        this.chartCanvas = document.getElementById('calculus-chart');
+        this.functionInput = document.getElementById('function-input');
+        this.errorMsg = document.getElementById('error-message');
+
+        // Tabs and Controls
+        this.diffTab = document.getElementById('diff-tab');
+        this.intTab = document.getElementById('int-tab');
+        this.diffControls = document.getElementById('diff-controls');
+        this.intControls = document.getElementById('int-controls');
+
+        // Differentiation elements
+        this.xSlider = document.getElementById('x-slider');
+        this.xValueLabel = document.getElementById('x-value-label');
+        this.derivativeValue = document.getElementById('derivative-value');
+
+        // Integration elements
+        this.aInput = document.getElementById('a-input');
+        this.bInput = document.getElementById('b-input');
+        this.nSlider = document.getElementById('n-slider');
+        this.nValueLabel = document.getElementById('n-value-label');
+        this.integralValue = document.getElementById('integral-value');
+        this.integralFormula = document.getElementById('integral-formula');
+
+        this.chart = null;
+        this.mode = 'differentiation'; // 'differentiation' or 'integration'
+        this.parser = math.parser();
+
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.switchMode('differentiation');
+        this.updateChart();
+    }
+
+    setupEventListeners() {
+        this.diffTab.addEventListener('click', () => this.switchMode('differentiation'));
+        this.intTab.addEventListener('click', () => this.switchMode('integration'));
+        
+        this.functionInput.addEventListener('change', () => this.updateChart());
+        
+        // Differentiation listeners
+        this.xSlider.addEventListener('input', () => this.drawDifferential());
+
+        // Integration listeners
+        this.aInput.addEventListener('input', () => this.drawIntegral());
+        this.bInput.addEventListener('input', () => this.drawIntegral());
+        this.nSlider.addEventListener('input', () => this.drawIntegral());
+    }
+
+    switchMode(newMode) {
+        this.mode = newMode;
+        if (this.mode === 'differentiation') {
+            this.diffTab.classList.add('active');
+            this.intTab.classList.remove('active');
+            this.diffControls.classList.remove('hidden');
+            this.intControls.classList.add('hidden');
+        } else {
+            this.intTab.classList.add('active');
+            this.diffTab.classList.remove('active');
+            this.intControls.classList.remove('hidden');
+            this.diffControls.classList.add('hidden');
+        }
+        this.updateChart();
+    }
+
+    evaluateFunction(x) {
+        try {
+            this.parser.set('x', x);
+            const result = this.parser.evaluate(this.functionInput.value);
+            if (typeof result !== 'number' || !isFinite(result)) return null;
+            this.errorMsg.textContent = '';
+            return result;
+        } catch (e) {
+            this.errorMsg.textContent = '関数の式が無効です。';
+            return null;
+        }
+    }
+
+    updateChart() {
+        const labels = [];
+        const data = [];
+        for (let x = -5; x <= 5; x += 0.1) {
+            labels.push(x.toFixed(1));
+            const y = this.evaluateFunction(x);
+            data.push(y);
+        }
+
+        const datasets = [{
+            label: `f(x) = ${this.functionInput.value}`,
+            data: data,
+            borderColor: '#4f46e5',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.1
+        }];
+
+        if (this.chart) {
+            this.chart.data.labels = labels;
+            this.chart.data.datasets = datasets;
+            this.chart.update('none'); // Update without animation
+        } else {
+            const ctx = this.chartCanvas.getContext('2d');
+            this.chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    animation: { duration: 0 },
+                    scales: {
+                        x: { type: 'linear', position: 'bottom' },
+                        y: { beginAtZero: false }
+                    }
+                }
+            });
+        }
+        
+        if (this.mode === 'differentiation') {
+            this.drawDifferential();
+        } else {
+            this.drawIntegral();
+        }
+    }
+
+    drawDifferential() {
+        const x = parseFloat(this.xSlider.value);
+        this.xValueLabel.textContent = x.toFixed(2);
+
+        const y = this.evaluateFunction(x);
+        if (y === null) return;
+
+        // Numerical derivative
+        const h = 0.001;
+        const derivative = (this.evaluateFunction(x + h) - this.evaluateFunction(x - h)) / (2 * h);
+        this.derivativeValue.textContent = derivative.toFixed(2);
+
+        // Tangent line y = mx + c => c = y - mx
+        const c = y - derivative * x;
+        const tangentData = this.chart.data.labels.map(val => derivative * val + c);
+
+        // Update chart with tangent line
+        this.chart.data.datasets[1] = {
+            label: '接線',
+            data: tangentData,
+            borderColor: '#f87171',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            borderDash: [5, 5]
+        };
+        
+        // Point on the curve
+        this.chart.data.datasets[2] = {
+            label: '現在の点',
+            data: [{x: x, y: y}],
+            backgroundColor: '#ef4444',
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            type: 'bubble'
+        };
+
+        this.chart.update('none');
+    }
+
+    drawIntegral() {
+        const a = parseFloat(this.aInput.value);
+        const b = parseFloat(this.bInput.value);
+        const n = parseInt(this.nSlider.value);
+        this.nValueLabel.textContent = n;
+
+        if (isNaN(a) || isNaN(b) || a >= b) {
+            this.integralValue.textContent = '無効な範囲';
+            this.integralFormula.innerHTML = '';
+            return;
+        }
+
+        const dx = (b - a) / n;
+        let area = 0;
+        const integralData = [];
+        const backgroundColors = [];
+
+        for (let i = 0; i < n; i++) {
+            const x = a + i * dx;
+            const y = this.evaluateFunction(x);
+            if (y !== null) {
+                area += y * dx;
+                integralData.push({x: x, y: y});
+                backgroundColors.push('rgba(167, 139, 250, 0.5)');
+            }
+        }
+        
+        this.integralValue.textContent = area.toFixed(2);
+        
+        this.integralFormula.innerHTML = `
+            <p>計算式: <span class="font-bold">Σ f(xᵢ) * Δx</span></p>
+            <p>分割幅 (Δx): <span class="font-bold">${dx.toFixed(4)}</span></p>
+        `;
+
+        // Remove old datasets
+        this.chart.data.datasets = this.chart.data.datasets.slice(0, 1);
+
+        this.chart.data.datasets[1] = {
+            type: 'bar',
+            label: '積分エリア (リーマン和)',
+            data: integralData,
+            backgroundColor: backgroundColors,
+            barPercentage: 1.0,
+            categoryPercentage: 1.0
+        };
+
+        this.chart.update('none');
+    }
+}
+
+new CalculusVisualizer();
+</script>
+</body>
+</html>
