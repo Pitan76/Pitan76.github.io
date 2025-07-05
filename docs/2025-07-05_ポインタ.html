@@ -19,12 +19,32 @@
         }
         #visualizer-wrapper {
             position: relative;
-            background: #1f2937 url('https://www.transparenttextures.com/patterns/cubes.png');
+            background: #166534; /* 暗い緑色 */
             border-radius: 0.75rem;
             padding: 2rem 1rem 1rem;
             min-height: 500px;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             overflow: hidden;
+            /* 上部のコネクタ部分のみ暗い黄色 */
+            background-image: linear-gradient(to bottom, #a16207 0px, #a16207 20px, transparent 20px);
+        }
+        
+        /* コネクタピンを追加 */
+        #visualizer-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 20px;
+            right: 20px;
+            height: 10px;
+            background: repeating-linear-gradient(
+                90deg,
+                #ca8a04 0px,
+                #ca8a04 8px,
+                #a16207 8px,
+                #a16207 16px
+            );
+            border-radius: 2px;
         }
         #visualizer {
             position: relative;
@@ -35,8 +55,8 @@
             position: absolute;
             width: 120px;
             height: 80px;
-            background-color: #dcfce7; /* green-100 */
-            border: 2px solid #16a34a; /* green-600 */
+            background-color: white;
+            border: 2px solid #4b5563;
             border-radius: 0.5rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
             transition: all 0.5s ease-in-out;
@@ -49,18 +69,17 @@
         }
         .mem-address {
             font-size: 0.75rem;
-            color: #059669; /* green-600 */
+            color: #6b7280;
             padding: 2px 6px;
-            background-color: #fde047; /* yellow-300 - コネクタ色 */
-            border-bottom: 1px solid #16a34a; /* green-600 */
+            background-color: #f3f4f6;
+            border-bottom: 1px solid #d1d5db;
             border-radius: 0.5rem 0.5rem 0 0;
             text-align: center;
-            font-weight: bold;
         }
         .mem-header {
             font-size: 0.8rem;
             font-weight: bold;
-            color: #15803d; /* green-700 */
+            color: #4b5563;
             padding: 2px 6px;
             text-align: center;
         }
@@ -71,7 +90,7 @@
             align-items: center;
             font-size: 1.5rem;
             font-weight: bold;
-            color: #14532d; /* green-900 */
+            color: #111827;
         }
         .mem-value.is-pointer {
             color: #be123c; /* rose-700 */
@@ -561,11 +580,12 @@ class PointerVisualizer {
     }
     
     async moveRobotTo(element) {
-        const rect = element.getBoundingClientRect();
-        const containerRect = this.visualizer.getBoundingClientRect();
-        const targetX = rect.left - containerRect.left + (rect.width / 2) - (this.robot.offsetWidth / 2);
-        // ロボットを箱の左上に配置してアドレスが見えるようにする
-        const targetY = rect.top - containerRect.top - this.robot.offsetHeight + 10;
+        // getBoundingClientRect()の代わりに、要素のstyleから直接位置を取得
+        const elementLeft = parseInt(element.style.left) || 0;
+        const elementTop = parseInt(element.style.top) || 0;
+        const targetX = elementLeft + (120 / 2) - (this.robot.offsetWidth / 2); // 箱の幅120pxの中央
+        const targetY = elementTop - 40; // 箱の上30px
+        
         this.robot.style.left = `${targetX}px`;
         this.robot.style.top = `${targetY}px`;
         await this.sleep();
