@@ -33,6 +33,7 @@
         #pages-container {
             display: flex; height: 100%;
             transition: transform 0.3s ease-out;
+            cursor: grab;
         }
 
         .page {
@@ -51,6 +52,15 @@
             display: flex; flex-direction: column; align-items: center;
             justify-content: flex-start; text-align: center;
             padding-top: 0.5rem; position: relative; touch-action: none;
+            transition: all 0.2s ease;
+        }
+        .app-icon.wiggle {
+            animation: wiggle 0.3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes wiggle {
+            0% { transform: rotate(-1deg) scale(1.05); }
+            100% { transform: rotate(1deg) scale(1.05); }
         }
         .app-icon .icon-bg {
             width: 60px; height: 60px; border-radius: 0.75rem;
@@ -109,29 +119,136 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 40;
             display: flex; flex-direction: column; overflow: hidden;
             resize: both; border: 1px solid #4a4a4a;
+            touch-action: none;
         }
         .window.maximized {
             width: 100vw; height: 100vh;
             top: 0 !important; left: 0 !important;
             border-radius: 0; resize: none;
         }
+        .window.minimized {
+            display: none;
+        }
         .window-header {
-            padding: 0.5rem; background: #333; cursor: move;
+            padding: 0.3rem 0.5rem;
+            background: #333;
+            cursor: move;
+            padding-right: 3px;
             display: flex; align-items: center;
-            color: #ccc; font-size: 14px;
+            color: #ccc; font-size: 13px; height: 35px;
+            touch-action: none;
         }
         .window-controls {
             margin-left: auto; display: flex;
         }
         .win-btn {
-            width: 40px; height: 30px; display: flex;
+            width: 35px; height: 30px; display: flex;
             align-items: center; justify-content: center;
-            cursor: pointer; color: #ccc;
+            cursor: pointer; color: #ccc; font-size: 12px;
         }
         .win-btn:hover { background-color: rgba(255,255,255,0.1); }
         .win-btn.close-btn:hover { background-color: #e81123; color: white; }
         .window-content {
             flex-grow: 1; border: none; background-color: #fff;
+        }
+        .window-content.custom-content {
+            display: flex; flex-direction: column; height: 100%;
+        }
+        
+        .minimized-icon {
+            position: fixed; width: 60px; height: 60px;
+            background: #1e1e1e; border-radius: 0.75rem;
+            border: 2px solid #4a4a4a; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: #ccc; font-size: 24px; z-index: 45;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: transform 0.2s ease;
+        }
+        .minimized-icon:hover {
+            transform: scale(1.1);
+        }
+        
+        .resize-handle {
+            position: absolute; width: 20px; height: 20px;
+            background: #666; border-radius: 50%;
+            cursor: nw-resize; z-index: 50;
+            display: flex; align-items: center; justify-content: center;
+            color: #ccc; font-size: 12px;
+            opacity: 0.7; transition: opacity 0.2s;
+            bottom: -10px; right: -10px;
+        }
+        .resize-handle:hover {
+            opacity: 1; background: #888;
+        }
+        
+        .back-button {
+            position: fixed; bottom: 20px; left: 20px;
+            width: 50px; height: 50px; background: rgba(0,0,0,0.8);
+            border-radius: 10px; display: flex; align-items: center;
+            justify-content: center; color: white; font-size: 20px;
+            cursor: pointer; z-index: 1001; backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.3);
+            transition: all 0.2s ease;
+        }
+        .back-button:hover {
+            background: rgba(0,0,0,0.9); transform: scale(1.1);
+        }
+        .back-button.hidden {
+            opacity: 0; pointer-events: none;
+        }
+        
+        /* 編集モーダル */
+        .edit-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(30, 30, 30, 0.95); backdrop-filter: blur(20px);
+            border-radius: 20px; padding: 30px; width: 300px; z-index: 1000;
+            color: white; text-align: center; border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .edit-modal h3 {
+            margin: 0 0 20px 0; font-size: 18px; font-weight: 600;
+        }
+        
+        .edit-modal input {
+            width: 100%; padding: 12px; margin: 8px 0; border: none; border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1); color: white; font-size: 16px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .edit-modal input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .edit-modal .buttons {
+            display: flex; gap: 10px; margin-top: 20px;
+        }
+        
+        .edit-modal button {
+            flex: 1; padding: 12px; border: none; border-radius: 10px;
+            font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        
+        .edit-modal .save-btn {
+            background: #007AFF; color: white;
+        }
+        
+        .edit-modal .cancel-btn {
+            background: rgba(255, 255, 255, 0.1); color: white;
+        }
+        
+        .edit-modal .delete-btn {
+            background: #FF3B30; color: white;
+        }
+        
+        /* ドラッグクローン */
+        .drag-clone {
+            position: fixed; pointer-events: none; z-index: 1000;
+            opacity: 0.8; transform: scale(1.1);
+        }
+
+        /* ブラウザ用の追加スタイル */
+        #url-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
         }
     </style>
 </head>
@@ -142,6 +259,9 @@
         <div id="pages-container"></div>
         <div id="page-indicator"></div>
         <div id="dock"></div>
+        <div id="back-button" class="back-button">
+            <i class="fa-solid fa-caret-left"></i>
+        </div>
     </div>
     <div id="add-app-modal" class="modal-backdrop hidden"></div>
     <input type="file" id="wallpaper-input" class="hidden" accept="image/*">
@@ -155,11 +275,23 @@
         const appRoot = document.getElementById('app-root');
         const wallpaperInput = document.getElementById('wallpaper-input');
         const addAppModal = document.getElementById('add-app-modal');
+        const backButton = document.getElementById('back-button');
 
         // --- グローバル状態変数 ---
         let state = { apps: [], dockApps: [], wallpaper: 'https://source.unsplash.com/random/1080x1920?nature,water', currentPage: 0 };
         let isDragging = false; // ドラッグ中かどうかのフラグ
         let pointerDownTime = 0; // マウス/タッチ開始時間
+        let windowZIndex = 40; // ウィンドウのz-index管理
+        let minimizedWindows = []; // 最小化されたウィンドウの情報
+        
+        // 長押し・移動・編集関連の変数
+        let longPressTimer = null;
+        let isLongPress = false;
+        let startX = 0, startY = 0;
+        let editingApp = null;
+        let dragClone = null;
+        const LONG_PRESS_DELAY = 500; // 長押し判定時間（ms）
+        const MOVE_THRESHOLD = 10; // 移動判定閾値（px）
 
         const defaultApps = [
             [
@@ -167,10 +299,13 @@
                 { name: '天気', url: 'https://www.google.com/search?q=weather', icon: 'fa-solid fa-cloud-sun', color: '#3498db', windowed: true },
                 { name: 'マップ', url: 'maps://', icon: 'fa-solid fa-map-location-dot', color: '#34A853', type: 'url_scheme'},
                 { name: '設定', url: 'settings', icon: 'fa-solid fa-gear', color: '#8e8e93', type: 'action' },
+                { name: 'ブラウザ', url: 'browser', icon: 'fa-solid fa-globe', color: '#007AFF', type: 'browser' },
             ],
             [
-                 { name: 'WikiChree', url: 'https://wikichree.com/', icon: 'fa-solid fa-leaf', color: '#4CAF50', windowed: true },
-                 { name: 'GitHub', url: 'https://github.com', icon: 'fa-brands fa-github', color: '#181717', windowed: true },
+                 { name: 'WikiChree.COM', url: 'https://wikichree.com/', icon: 'fa-solid fa-leaf', color: '#4CAF50', windowed: true, type: 'web' },
+                 { name: 'pitq docs', url: 'https://pitan76.github.io/docs/', icon: 'fa-solid fa-book', color: '#FF6B35', windowed: true, type: 'web' },
+                 { name: 'GitHub', url: 'https://github.com', icon: 'fa-brands fa-github', color: '#181717', windowed: true, type: 'web' },
+                 { name: 'ターミナル', url: 'terminal', icon: 'fa-solid fa-terminal', color: '#000000', type: 'terminal' },
             ]
         ];
         const defaultDockApps = [
@@ -244,11 +379,37 @@
             const iconBg = document.createElement('div');
             iconBg.className = 'icon-bg';
             iconBg.style.backgroundColor = app.color;
-            if (app.icon && app.icon.startsWith('http')) {
+            
+            // カスタム画像、favicon、Font Awesomeアイコンの優先順位で表示
+            if (app.customImage) {
+                // カスタム画像が設定されている場合
+                iconBg.style.backgroundImage = `url(${app.customImage})`;
+                iconBg.style.backgroundSize = 'cover';
+                iconBg.style.backgroundPosition = 'center';
+            } else if (app.icon && app.icon.startsWith('http')) {
+                // 既存のHTTP URLアイコン
                 iconBg.style.backgroundImage = `url(${app.icon})`;
+                iconBg.style.backgroundSize = 'cover';
+                iconBg.style.backgroundPosition = 'center';
+            } else if (app.url && app.windowed && !app.icon.startsWith('fa-')) {
+                // ウィンドウで開くアプリで Font Awesome でない場合、faviconを自動取得
+                try {
+                    const domain = new URL(app.url).hostname;
+                    const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+                    iconBg.style.backgroundImage = `url(${faviconUrl})`;
+                    iconBg.style.backgroundSize = 'cover';
+                    iconBg.style.backgroundPosition = 'center';
+                } catch (e) {
+                    // URLが無効な場合はFont Awesomeアイコンを使用
+                    const icon = document.createElement('i');
+                    icon.className = app.icon || 'fa-solid fa-question';
+                    if(app.specialIconColor) icon.style.color = app.specialIconColor;
+                    iconBg.appendChild(icon);
+                }
             } else {
+                // Font Awesomeアイコン
                 const icon = document.createElement('i');
-                icon.className = app.icon || '';
+                icon.className = app.icon || 'fa-solid fa-question';
                 if(app.specialIconColor) icon.style.color = app.specialIconColor;
                 iconBg.appendChild(icon);
             }
@@ -259,20 +420,90 @@
             appDiv.appendChild(appName);
 
             // ### クリック判定ロジック START ###
-            appDiv.addEventListener('mousedown', () => { pointerDownTime = new Date().getTime(); });
-            appDiv.addEventListener('touchstart', () => { pointerDownTime = new Date().getTime(); }, { passive: true });
+            let longPressTimer = null;
+            let isLongPressing = false;
+            let startX = 0, startY = 0;
+            let isDragMode = false;
+            
+            const startLongPress = (e) => {
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                startX = clientX;
+                startY = clientY;
+                isLongPressing = false;
+                isDragMode = false;
+                
+                longPressTimer = setTimeout(() => {
+                    isLongPressing = true;
+                    isDragMode = true;
+                    appDiv.classList.add('wiggle');
+                    navigator.vibrate && navigator.vibrate(50); // バイブレーション
+                    showToast('移動モード: ドラッグして移動できます');
+                }, LONG_PRESS_DELAY);
+            };
+            
+            const cancelLongPress = () => {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            };
+            
+            const checkMove = (e) => {
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                const dx = Math.abs(clientX - startX);
+                const dy = Math.abs(clientY - startY);
+                
+                if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+                    if (!isDragMode) {
+                        cancelLongPress();
+                    }
+                }
+            };
+            
+            appDiv.addEventListener('mousedown', (e) => { 
+                pointerDownTime = new Date().getTime(); 
+                startLongPress(e);
+            });
+            appDiv.addEventListener('touchstart', (e) => { 
+                pointerDownTime = new Date().getTime(); 
+                startLongPress(e);
+                e.preventDefault(); // iOS のスクロール防止
+            }, { passive: false });
+            
+            appDiv.addEventListener('mousemove', checkMove);
+            appDiv.addEventListener('touchmove', checkMove, { passive: true });
 
-            appDiv.addEventListener('mouseup', () => {
+            appDiv.addEventListener('mouseup', (e) => {
+                cancelLongPress();
+                appDiv.classList.remove('wiggle');
                 const timeSinceDown = new Date().getTime() - pointerDownTime;
-                if (!isDragging && timeSinceDown < 200) {
+                
+                if (!isDragging && !isLongPressing && timeSinceDown < 200) {
                     handleAppClick(app);
+                } else if (isDragMode && timeSinceDown > LONG_PRESS_DELAY) {
+                    // 長押し後の離し操作では編集モーダルを表示
+                    showEditModal(app, pageIndex, appIndex, location);
                 }
             });
-            appDiv.addEventListener('touchend', () => {
+            appDiv.addEventListener('touchend', (e) => {
+                cancelLongPress();
+                appDiv.classList.remove('wiggle');
                 const timeSinceDown = new Date().getTime() - pointerDownTime;
-                if (!isDragging && timeSinceDown < 200) {
+                
+                if (!isDragging && !isLongPressing && timeSinceDown < 200) {
                     handleAppClick(app);
+                } else if (isDragMode && timeSinceDown > LONG_PRESS_DELAY) {
+                    // 長押し後の離し操作では編集モーダルを表示
+                    showEditModal(app, pageIndex, appIndex, location);
                 }
+            });
+            
+            // 右クリックで編集
+            appDiv.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showEditModal(app, pageIndex, appIndex, location);
             });
             // ### クリック判定ロジック END ###
 
@@ -280,8 +511,9 @@
         }
 
         function handleAppClick(app) {
-            if (!app || !app.type) return;
+            if (!app) return;
 
+            // 特定のtypeに基づく処理
             if (app.type === 'native' && app.url === 'camera') {
                 const camInput = document.createElement('input');
                 camInput.type = 'file'; camInput.accept = 'image/*';
@@ -292,12 +524,200 @@
                 openSettings(); return;
             }
             if (app.type === 'browser') {
-                window.open(app.url, '_blank'); return;
+                createBrowserWindow(); return;
             }
+            if (app.type === 'terminal') {
+                createTerminalWindow(); return;
+            }
+            if (app.type === 'web' && app.windowed) {
+                createWindow(app.name, app.url, null, app.icon);
+                return;
+            }
+            
+            // windowedプロパティに基づく処理（typeが無くても動作）
             if (app.windowed) {
-                createWindow(app.name, app.url);
+                createWindow(app.name, app.url, null, app.icon);
             } else {
-                if (app.url) window.location.href = app.url;
+                if (app.url) {
+                    // target="_blank" の代わりに同一タブで遷移
+                    window.location.href = app.url;
+                }
+            }
+        }
+        
+        // 編集モーダル表示
+        function showEditModal(app, pageIndex, appIndex, location) {
+            const modal = document.createElement('div');
+            modal.className = 'modal-backdrop';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            modal.style.zIndex = '999';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            
+            const editModal = document.createElement('div');
+            editModal.className = 'edit-modal';
+            editModal.innerHTML = `
+                <h3>アプリを編集</h3>
+                <input type="text" id="edit-name" placeholder="アプリ名" value="${app.name}">
+                <input type="text" id="edit-url" placeholder="URL" value="${app.url || ''}">
+                <input type="text" id="edit-icon" placeholder="アイコン（Font Awesome）" value="${app.icon || ''}">
+                <input type="url" id="edit-custom-image" placeholder="カスタム画像URL（オプション）" value="${app.customImage || ''}">
+                <input type="color" id="edit-color" value="${app.color || '#007AFF'}">
+                <div class="buttons">
+                    <button class="cancel-btn" onclick="closeEditModal()">キャンセル</button>
+                    <button class="delete-btn" onclick="deleteApp(${pageIndex}, ${appIndex}, '${location}')">削除</button>
+                    <button class="save-btn" onclick="saveAppEdit(${pageIndex}, ${appIndex}, '${location}')">保存</button>
+                </div>
+            `;
+            
+            modal.appendChild(editModal);
+            document.body.appendChild(modal);
+            
+            // モーダル外クリックで閉じる
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeEditModal();
+            });
+            
+            window.currentEditModal = modal;
+        }
+        
+        function closeEditModal() {
+            if (window.currentEditModal) {
+                document.body.removeChild(window.currentEditModal);
+                window.currentEditModal = null;
+            }
+        }
+        
+        function saveAppEdit(pageIndex, appIndex, location) {
+            const name = document.getElementById('edit-name').value;
+            const url = document.getElementById('edit-url').value;
+            const icon = document.getElementById('edit-icon').value;
+            const customImage = document.getElementById('edit-custom-image').value;
+            const color = document.getElementById('edit-color').value;
+            
+            if (!name) {
+                alert('アプリ名を入力してください');
+                return;
+            }
+            
+            const app = (location === 'dock') ? state.dockApps[appIndex] : state.apps[pageIndex][appIndex];
+            app.name = name;
+            app.url = url;
+            app.icon = icon;
+            app.customImage = customImage;
+            app.color = color;
+            
+            saveData();
+            render();
+            closeEditModal();
+            showToast('アプリを更新しました');
+        }
+        
+        function deleteApp(pageIndex, appIndex, location) {
+            if (!confirm('このアプリを削除しますか？')) return;
+            
+            if (location === 'dock') {
+                state.dockApps.splice(appIndex, 1);
+            } else {
+                state.apps[pageIndex].splice(appIndex, 1);
+            }
+            
+            saveData();
+            render();
+            closeEditModal();
+            showToast('アプリを削除しました');
+        }
+        
+        // ブラウザウィンドウを作成
+        function createBrowserWindow() {
+            const browserContent = `
+                <div style="display: flex; flex-direction: column; height: 100%;">
+                    <div style="display: flex; align-items: center; padding: 10px; background: rgba(0,0,0,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <input type="url" id="url-input" placeholder="URLを入力してください" 
+                               style="flex: 1; padding: 8px; border: none; border-radius: 5px; background: #333; color: white; margin-right: 10px;"
+                               value="https://www.google.com">
+                        <button id="navigate-btn" style="padding: 8px 15px; background: #007AFF; color: white; border: none; border-radius: 5px; cursor: pointer;">移動</button>
+                    </div>
+                    <iframe id="browser-frame" src="https://www.google.com" style="flex: 1; border: none; background: white;"></iframe>
+                </div>
+            `;
+            
+            createWindow('ブラウザ', '', browserContent, 'fa-solid fa-globe');
+            
+            // ウィンドウ作成後にイベントリスナーを設定
+            setTimeout(() => {
+                const urlInput = document.getElementById('url-input');
+                const navBtn = document.getElementById('navigate-btn');
+                
+                if (urlInput && navBtn) {
+                    // Enter キーでの移動
+                    urlInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            navigateToUrl();
+                        }
+                    });
+                    
+                    // ボタンクリックでの移動
+                    navBtn.addEventListener('click', () => {
+                        navigateToUrl();
+                    });
+                }
+            }, 100);
+        }
+        
+        // URL移動機能
+        function navigateToUrl() {
+            const urlInput = document.getElementById('url-input');
+            const iframe = document.getElementById('browser-frame');
+            const navBtn = document.getElementById('navigate-btn');
+            
+            if (!urlInput || !iframe) return;
+            
+            let url = urlInput.value.trim();
+            if (!url) return;
+            
+            // プロトコルが無い場合はhttpsを追加
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+            
+            try {
+                // ボタンを一時的に無効化
+                if (navBtn) {
+                    navBtn.textContent = '読込中...';
+                    navBtn.disabled = true;
+                }
+                
+                iframe.src = url;
+                urlInput.value = url;
+                
+                // 読み込み完了後にボタンを復元
+                iframe.onload = () => {
+                    if (navBtn) {
+                        navBtn.textContent = '移動';
+                        navBtn.disabled = false;
+                    }
+                };
+                
+                setTimeout(() => {
+                    if (navBtn) {
+                        navBtn.textContent = '移動';
+                        navBtn.disabled = false;
+                    }
+                }, 3000);
+                
+            } catch (e) {
+                alert('無効なURLです');
+                if (navBtn) {
+                    navBtn.textContent = '移動';
+                    navBtn.disabled = false;
+                }
             }
         }
         
@@ -343,6 +763,7 @@
                 <label for="appName">アプリ名</label> <input id="appName" type="text" class="modal-input" placeholder="例: Google">
                 <label for="appUrl">URL</label> <input id="appUrl" type="url" class="modal-input" placeholder="https://google.com">
                 <label for="appIcon">Font Awesome アイコンクラス</label> <input id="appIcon" type="text" class="modal-input" placeholder="例: fa-brands fa-google">
+                <label for="appCustomImage">カスタム画像URL（オプション）</label> <input id="appCustomImage" type="url" class="modal-input" placeholder="https://example.com/image.png">
                 <label for="appColor">アイコン背景色</label> <input id="appColor" type="color" class="modal-input w-full" value="#4285F4">
                 <div class="flex items-center mb-4">
                     <input id="appWindowed" type="checkbox" class="mr-2"> <label for="appWindowed">ウィンドウで開く</label>
@@ -359,36 +780,66 @@
             document.getElementById('confirm-add-app').onclick = () => {
                 const name = document.getElementById('appName').value, url = document.getElementById('appUrl').value;
                 const icon = document.getElementById('appIcon').value, color = document.getElementById('appColor').value;
+                const customImage = document.getElementById('appCustomImage').value;
                 const windowed = document.getElementById('appWindowed').checked;
                 if (name && url && icon) {
-                    const newApp = { name, url, icon, color, windowed, type: windowed ? 'url_scheme' : 'browser' };
+                    const newApp = { name, url, icon, customImage, color, windowed, type: windowed ? 'url_scheme' : 'browser' };
                     const targetPage = state.apps[state.currentPage] || state.apps[state.apps.length - 1];
                     targetPage.push(newApp);
                     saveData(); render(); addAppModal.classList.add('hidden');
-                } else { showToast('すべての項目を入力してください。'); }
+                } else { showToast('アプリ名、URL、アイコンは必須項目です。'); }
             };
         }
 
-        function createWindow(title, url) {
+        function createWindow(title, url, customContent = null, titleIcon = null) {
             const win = document.createElement('div');
             win.className = 'window';
             const top = Math.random() * (window.innerHeight * 0.1) + (window.innerHeight * 0.1);
             const left = Math.random() * (window.innerWidth * 0.1) + (window.innerWidth * 0.05);
             win.style.top = `${top}px`; win.style.left = `${left}px`;
+            win.style.zIndex = ++windowZIndex; // 新しいウィンドウを最前面に
+            
+            // カスタムコンテンツまたはiframe
+            const contentHTML = customContent ? 
+                `<div class="window-content custom-content">${customContent}</div>` : 
+                `<iframe class="window-content" src="${url}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>`;
+            
+            // タイトルアイコンの表示
+            const iconHTML = titleIcon ? `<i class="${titleIcon}" style="margin-right: 8px; font-size: 14px;"></i>` : '';
+            
             win.innerHTML = `
                 <div class="window-header">
-                    <span>${title}</span>
+                    ${iconHTML}<span>${title}</span>
                     <div class="window-controls">
                         <div class="win-btn min-btn"><i class="fa-regular fa-window-minimize"></i></div>
                         <div class="win-btn max-btn"><i class="fa-regular fa-window-maximize"></i></div>
                         <div class="win-btn close-btn"><i class="fa-solid fa-xmark"></i></div>
                     </div>
                 </div>
-                <iframe class="window-content" src="${url}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>`;
+                ${contentHTML}
+                <div class="resize-handle"><i class="fa-solid fa-expand"></i></div>`;
             appRoot.appendChild(win);
 
+            // 戻るボタンを表示
+            updateBackButtonVisibility();
+
+            // ウィンドウクリックで最前面に
+            win.addEventListener('mousedown', () => {
+                win.style.zIndex = ++windowZIndex;
+            });
+            win.addEventListener('touchstart', () => {
+                win.style.zIndex = ++windowZIndex;
+            });
+
             const header = win.querySelector('.window-header');
-            win.querySelector('.close-btn').onclick = () => win.remove();
+            win.querySelector('.close-btn').onclick = () => {
+                // 最小化アイコンも削除
+                const minIcon = document.querySelector(`[data-window-id="${win.dataset.windowId}"]`);
+                if (minIcon) minIcon.remove();
+                minimizedWindows = minimizedWindows.filter(w => w.element !== win);
+                win.remove();
+                updateBackButtonVisibility();
+            };
             
             const maxBtn = win.querySelector('.max-btn');
             let originalRect = null;
@@ -402,30 +853,137 @@
                     maxBtn.innerHTML = '<i class="fa-regular fa-window-maximize"></i>';
                 }
             };
-            win.querySelector('.min-btn').onclick = () => { showToast('最小化は現在開発中です。'); };
+
+            // 最小化機能
+            const windowId = 'win_' + Date.now();
+            win.dataset.windowId = windowId;
+            win.querySelector('.min-btn').onclick = () => {
+                win.classList.add('minimized');
+                createMinimizedIcon(win, title, windowId);
+                updateBackButtonVisibility();
+            };
             
+            // ウィンドウドラッグ機能
             let isWindowDragging = false, offsetX, offsetY;
             const startDrag = (e) => {
+                e.preventDefault(); // スクロール防止
+                e.stopPropagation(); // イベント伝播防止
                 isWindowDragging = true;
+                win.style.zIndex = ++windowZIndex; // ドラッグ開始時に最前面に
                 const clientX = e.clientX || e.touches[0].clientX; const clientY = e.clientY || e.touches[0].clientY;
                 offsetX = clientX - win.offsetLeft; offsetY = clientY - win.offsetTop;
                 header.style.cursor = 'grabbing';
             };
             const doDrag = (e) => {
                 if (isWindowDragging && !win.classList.contains('maximized')) {
+                    e.preventDefault(); // スクロール防止
                     const clientX = e.clientX || e.touches[0].clientX; const clientY = e.clientY || e.touches[0].clientY;
                     win.style.left = `${clientX - offsetX}px`; win.style.top = `${clientY - offsetY}px`;
                 }
             };
-            const stopDrag = () => { isWindowDragging = false; header.style.cursor = 'move'; };
+            const stopDrag = (e) => { 
+                e.preventDefault(); // スクロール防止
+                isWindowDragging = false; header.style.cursor = 'move'; 
+            };
 
-            header.addEventListener('mousedown', startDrag); document.addEventListener('mousemove', doDrag); document.addEventListener('mouseup', stopDrag);
-            header.addEventListener('touchstart', startDrag); document.addEventListener('touchmove', doDrag); document.addEventListener('touchend', stopDrag);
+            header.addEventListener('mousedown', startDrag); 
+            document.addEventListener('mousemove', doDrag); 
+            document.addEventListener('mouseup', stopDrag);
+            header.addEventListener('touchstart', startDrag, { passive: false }); 
+            document.addEventListener('touchmove', doDrag, { passive: false }); 
+            document.addEventListener('touchend', stopDrag, { passive: false });
+
+            // リサイズ機能
+            const resizeHandle = win.querySelector('.resize-handle');
+            let isResizing = false, startWidth, startHeight, startMouseX, startMouseY;
+            
+            const startResize = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                isResizing = true;
+                win.style.zIndex = ++windowZIndex;
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                startWidth = parseInt(document.defaultView.getComputedStyle(win).width, 10);
+                startHeight = parseInt(document.defaultView.getComputedStyle(win).height, 10);
+                startMouseX = clientX;
+                startMouseY = clientY;
+                resizeHandle.style.background = '#888';
+            };
+            
+            const doResize = (e) => {
+                if (isResizing && !win.classList.contains('maximized')) {
+                    e.preventDefault();
+                    const clientX = e.clientX || e.touches[0].clientX;
+                    const clientY = e.clientY || e.touches[0].clientY;
+                    const newWidth = Math.max(200, startWidth + clientX - startMouseX);
+                    const newHeight = Math.max(150, startHeight + clientY - startMouseY);
+                    win.style.width = newWidth + 'px';
+                    win.style.height = newHeight + 'px';
+                }
+            };
+            
+            const stopResize = () => {
+                isResizing = false;
+                resizeHandle.style.background = '#666';
+            };
+
+            resizeHandle.addEventListener('mousedown', startResize);
+            document.addEventListener('mousemove', doResize);
+            document.addEventListener('mouseup', stopResize);
+            resizeHandle.addEventListener('touchstart', startResize, { passive: false });
+            document.addEventListener('touchmove', doResize, { passive: false });
+            document.addEventListener('touchend', stopResize, { passive: false });
         }
 
+        function createMinimizedIcon(windowElement, title, windowId) {
+            const minIcon = document.createElement('div');
+            minIcon.className = 'minimized-icon';
+            minIcon.dataset.windowId = windowId;
+            
+            // 最小化アイコンの位置を調整
+            const existingIcons = document.querySelectorAll('.minimized-icon').length;
+            minIcon.style.right = `${20 + (existingIcons * 70)}px`;
+            minIcon.style.top = '20px';
+            
+            minIcon.innerHTML = '<i class="fa-solid fa-window-restore"></i>';
+            minIcon.title = title;
+            
+            // クリックで復元
+            minIcon.onclick = () => {
+                windowElement.classList.remove('minimized');
+                windowElement.style.zIndex = ++windowZIndex;
+                minIcon.remove();
+                minimizedWindows = minimizedWindows.filter(w => w.element !== windowElement);
+                updateBackButtonVisibility();
+            };
+            
+            document.body.appendChild(minIcon);
+            minimizedWindows.push({ element: windowElement, icon: minIcon, title });
+        }
+
+        function updateBackButtonVisibility() {
+            // 戻るボタンは常に表示（ページナビゲーション用）
+            backButton.classList.remove('hidden');
+        }
+
+        // 戻るボタンのクリックイベント - 前のページに戻る
+        backButton.addEventListener('click', () => {
+            // ブラウザの戻る操作
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                showToast('戻るページがありません');
+            }
+        });
+
         let touchStartX = 0, isPageSwiping = false;
+        let mouseStartX = 0, isMouseDragging = false;
+        
+        // タッチイベント
         pagesContainer.addEventListener('touchstart', (e) => {
-            if (e.target.closest('.app-icon, .window, .modal-backdrop')) return;
+            // ウィンドウやウィンドウヘッダー内でのタッチは除外
+            if (e.target.closest('.window, .window-header, .app-icon, .modal-backdrop, .minimized-icon')) return;
             touchStartX = e.changedTouches[0].screenX; isPageSwiping = true;
         }, { passive: true });
         pagesContainer.addEventListener('touchend', (e) => {
@@ -436,6 +994,43 @@
             if (touchStartX - touchEndX > swipeThreshold) { if (state.currentPage < state.apps.length - 1) state.currentPage++; } 
             else if (touchEndX - touchStartX > swipeThreshold) { if (state.currentPage > 0) state.currentPage--; }
             saveData(); render();
+        });
+        
+        // マウスイベント
+        pagesContainer.addEventListener('mousedown', (e) => {
+            // ウィンドウやアプリアイコン内でのクリックは除外
+            if (e.target.closest('.window, .window-header, .app-icon, .modal-backdrop, .minimized-icon')) return;
+            mouseStartX = e.clientX; 
+            isMouseDragging = true;
+            pagesContainer.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isMouseDragging) return;
+            const deltaX = e.clientX - mouseStartX;
+            const currentTransform = -state.currentPage * 100;
+            const newTransform = currentTransform + (deltaX / window.innerWidth) * 100;
+            pagesContainer.style.transform = `translateX(${newTransform}vw)`;
+        });
+        
+        document.addEventListener('mouseup', (e) => {
+            if (!isMouseDragging) return;
+            isMouseDragging = false;
+            pagesContainer.style.cursor = 'default';
+            
+            const deltaX = e.clientX - mouseStartX;
+            const swipeThreshold = 100; // マウスの場合は少し大きめの閾値
+            
+            if (deltaX < -swipeThreshold && state.currentPage < state.apps.length - 1) {
+                state.currentPage++;
+            } else if (deltaX > swipeThreshold && state.currentPage > 0) {
+                state.currentPage--;
+            }
+            
+            saveData(); 
+            updatePagePosition();
+            render();
         });
         function updatePagePosition() { pagesContainer.style.transform = `translateX(-${state.currentPage * 100}vw)`; }
 
@@ -509,6 +1104,129 @@
             document.getElementById('confirm-cancel').onclick = () => { confirmModal.remove(); };
         }
 
+        // ターミナルウィンドウを作成
+        function createTerminalWindow() {
+            const terminalContent = `
+                <div style="display: flex; flex-direction: column; height: 100%; background: #1e1e1e; color: #00ff00; font-family: 'Courier New', monospace;">
+                    <div style="padding: 10px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 12px;">
+                        Terminal - pitq@localhost
+                    </div>
+                    <div id="terminal-output" style="flex: 1; padding: 10px; overflow-y: auto; font-size: 14px; line-height: 1.4;">
+                        <div>Welcome to pitq Terminal!</div>
+                        <div>Type 'help' for available commands.</div>
+                        <div></div>
+                    </div>
+                    <div style="display: flex; align-items: center; padding: 10px; background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.1);">
+                        <span style="margin-right: 10px; color: #00ff00;">$</span>
+                        <input type="text" id="terminal-input" 
+                               style="flex: 1; background: transparent; border: none; color: #00ff00; font-family: 'Courier New', monospace; font-size: 14px; outline: none;"
+                               placeholder="Enter command...">
+                    </div>
+                </div>
+            `;
+            
+            createWindow('ターミナル', '', terminalContent, 'fa-solid fa-terminal');
+            
+            // ウィンドウ作成後にイベントリスナーを設定
+            setTimeout(() => {
+                const input = document.getElementById('terminal-input');
+                if (input) {
+                    input.focus();
+                    
+                    // Enter キーでコマンド実行
+                    input.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            executeCommand();
+                        }
+                    });
+                }
+            }, 100);
+        }
+        
+        // ターミナルコマンド実行
+        function executeCommand() {
+            const input = document.getElementById('terminal-input');
+            const output = document.getElementById('terminal-output');
+            
+            if (!input || !output) return;
+            
+            const command = input.value.trim();
+            if (!command) return;
+            
+            // コマンドをターミナルに表示
+            const commandLine = document.createElement('div');
+            commandLine.innerHTML = `<span style="color: #00ff00;">$ ${command}</span>`;
+            output.appendChild(commandLine);
+            
+            // コマンド処理
+            let response = '';
+            switch (command.toLowerCase()) {
+                case 'help':
+                    response = `Available commands:
+help     - Show this help message
+clear    - Clear terminal
+date     - Show current date and time
+echo     - Echo text (usage: echo [text])
+ls       - List directory contents
+pwd      - Print working directory
+whoami   - Show current user
+uname    - System information
+cat      - Display file contents (simulated)
+about    - About this terminal`;
+                    break;
+                case 'clear':
+                    output.innerHTML = '';
+                    input.value = '';
+                    return;
+                case 'date':
+                    response = new Date().toString();
+                    break;
+                case 'ls':
+                    response = `Documents/  Pictures/  Downloads/  Desktop/  Music/  Videos/`;
+                    break;
+                case 'pwd':
+                    response = '/home/pitq';
+                    break;
+                case 'whoami':
+                    response = 'pitq';
+                    break;
+                case 'uname':
+                    response = 'Linux pitq-terminal 5.15.0 x86_64 GNU/Linux';
+                    break;
+                case 'about':
+                    response = `pitq Terminal v1.0
+A simple terminal emulator for the Home Screen app.
+Built with HTML, CSS, and JavaScript.`;
+                    break;
+                default:
+                    if (command.startsWith('echo ')) {
+                        response = command.substring(5);
+                    } else if (command.startsWith('cat ')) {
+                        response = `cat: ${command.substring(4)}: No such file or directory`;
+                    } else {
+                        response = `bash: ${command}: command not found`;
+                    }
+            }
+            
+            // レスポンスを表示
+            if (response) {
+                const responseLine = document.createElement('div');
+                responseLine.style.whiteSpace = 'pre-line';
+                responseLine.textContent = response;
+                output.appendChild(responseLine);
+            }
+            
+            // 空行追加
+            const emptyLine = document.createElement('div');
+            output.appendChild(emptyLine);
+            
+            // 入力欄をクリア
+            input.value = '';
+            
+            // 自動スクロール
+            output.scrollTop = output.scrollHeight;
+        }
+        
         function init() { loadData(); render(); }
         init();
     });
