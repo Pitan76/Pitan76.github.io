@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カルノー図学習ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; }
+        .tab-btn.active { border-bottom-color: #3b82f6; color: #2563eb; }
+        .k-map-grid {
+            display: grid;
+            grid-template-columns: 50px repeat(4, 1fr);
+            grid-template-rows: 50px repeat(4, 1fr);
+            gap: 4px;
+            transition: transform 0.8s ease-in-out;
+            transform-style: preserve-3d;
+        }
+        .k-map-cell {
+            background-color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            aspect-ratio: 1 / 1;
+            position: relative;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+            transform-style: preserve-3d;
+        }
+        .k-map-cell.header { background-color: #dbeafe; font-size: 0.8rem; line-height: 1.2; }
+        .k-map-cell.value-cell { background-color: #ffffff; cursor: pointer; font-size: 1.5rem; color: #475569; }
+        .k-map-cell.value-cell.one { background-color: #a7f3d0; color: #065f46; transform: scale(1.05); box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+        .k-map-cell.highlight-plot { background-color: #fef08a; transform: scale(1.15); z-index: 10; }
+        .group-box {
+            position: absolute;
+            border: 3px solid transparent;
+            pointer-events: none;
+            transition: all 0.5s ease-in-out, transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+            opacity: 0;
+            border-radius: 12px;
+            z-index: 20;
+            background-color: rgba(0,0,0,0.08);
+            will-change: transform, opacity;
+        }
+        .group-box.show { opacity: 1; }
+        .step-content.active { display: block; animation: fadeInUp 0.5s ease-out; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .not .bar { position: absolute; top: 0; left: 0; right: 0; height: 1.5px; background-color: currentColor; }
+        .not { position: relative; display: inline-block; padding: 0 0.1em; }
+        .animated-term { animation: popOut 0.5s ease; }
+        @keyframes popOut { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .formula-box { background: #f8fafc; border-left: 4px solid; padding: 0.75rem 1rem; margin-top: 1rem; border-radius: 0 8px 8px 0; min-height: 60px; }
+        /* アニメーション */
+        @keyframes wrap-around-Y {
+            50% { transform: rotateY(-25deg) scale(0.95); }
+        }
+        .wrapping-y { animation: wrap-around-Y 1.5s ease-in-out; }
+        @keyframes wrap-around-X {
+            50% { transform: rotateX(25deg) scale(0.95); }
+        }
+        .wrapping-x { animation: wrap-around-X 1.5s ease-in-out; }
+        
+        .simplification-area .var { transition: all 0.5s ease; }
+        .simplification-area .var.strike {
+            animation: strike-anim 1s forwards;
+        }
+        @keyframes strike-anim {
+            0% { opacity: 1; color: #ef4444; transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { opacity: 0.5; text-decoration: line-through; transform: scale(1); }
+        }
+        .simplification-area .var.keep { font-weight: bold; color: #16a34a; transform: scale(1.1); }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto max-w-3xl p-4">
+        <header class="text-center my-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600">究極のカルノー図学習ツール</h1>
+            <p class="mt-2 text-gray-600">見て学び、触って試す。論理式の簡略化を完全マスター！</p>
+        </header>
+
+        <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-xl">
+            <div class="flex justify-center border-b border-gray-200 mb-6">
+                <button id="tab-tutorial" class="tab-btn active font-semibold py-3 px-6">チュートリアル</button>
+                <button id="tab-free" class="tab-btn font-semibold py-3 px-6">フリー操作</button>
+            </div>
+
+            <div id="tutorial-mode">
+                <div class="mb-4">
+                    <label for="problem-select" class="block text-lg font-bold mb-2">学習パターンを選択</label>
+                    <select id="problem-select" class="w-full p-2 border border-gray-300 rounded-lg bg-white"></select>
+                </div>
+                <div id="tutorial-k-map-container" class="relative mb-4 p-2" style="perspective: 1200px;">
+                    <div id="tutorial-k-map" class="k-map-grid"></div>
+                </div>
+                <div id="tutorial-steps-container" class="bg-gray-50 p-4 rounded-lg min-h-[150px]"></div>
+                <div class="mt-6 flex justify-between items-center">
+                    <button id="prev-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">戻る</button>
+                    <div id="step-indicator" class="text-sm text-gray-500"></div>
+                    <button id="next-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition">次へ</button>
+                </div>
+            </div>
+
+            <div id="free-mode" class="hidden">
+                 <p class="text-center text-gray-600 mb-4">下のカルノー図のマスをクリックして '0' と '1' を切り替え、論理式がどう変化するか試してみましょう。</p>
+                <div id="free-k-map-container" class="relative mb-4 p-2">
+                    <div id="free-k-map" class="k-map-grid"></div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800">冗長な式 (主加法標準形)</h3>
+                    <div id="long-formula-display" class="formula-box font-mono text-red-600 break-words border-red-400"></div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-4">簡略化された式</h3>
+                    <div id="simple-formula-display" class="formula-box font-mono text-green-700 font-bold text-xl border-green-500"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// --- 全体の初期化とモード切替 ---
+document.addEventListener('DOMContentLoaded', () => {
+    const tutorialModeDiv = document.getElementById('tutorial-mode');
+    const freeModeDiv = document.getElementById('free-mode');
+    const tabTutorial = document.getElementById('tab-tutorial');
+    const tabFree = document.getElementById('tab-free');
+
+    tutorialManager.init();
+    freeMode.init();
+
+    tabTutorial.addEventListener('click', () => {
+        tutorialModeDiv.classList.remove('hidden');
+        freeModeDiv.classList.add('hidden');
+        tabTutorial.classList.add('active');
+        tabFree.classList.remove('active');
+    });
+
+    tabFree.addEventListener('click', () => {
+        tutorialModeDiv.classList.add('hidden');
+        freeModeDiv.classList.remove('hidden');
+        tabTutorial.classList.remove('active');
+        tabFree.classList.add('active');
+    });
+});
+
+// --- 共通の関数と定数 ---
+const KMapUtils = {
+    colLabels: ['00', '01', '11', '10'],
+    rowLabels: ['00', '01', '11', '10'],
+    termVars: ['A', 'B', 'C', 'D'],
+    not: (v) => `<span class="not">${v}<span class="bar"></span></span>`,
+
+    createDOM(containerId) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        const cells = [];
+        const corner = document.createElement('div');
+        corner.className = 'k-map-cell';
+        corner.innerHTML = `<span class="text-xs">AB<span class="font-bold text-lg">＼</span>CD</span>`;
+        container.appendChild(corner);
+        
+        const headerLabels = (labels, vars) => labels.map(label => {
+            const v1 = label[0] === '0' ? this.not(vars[0]) : vars[0];
+            const v2 = label[1] === '0' ? this.not(vars[1]) : vars[1];
+            return `<div class="text-center"><div>${label}</div><div class="text-xs text-gray-500 font-normal">(${v1}${v2})</div></div>`;
+        });
+        
+        headerLabels(this.colLabels, ['C', 'D']).forEach(labelHtml => {
+            const headerCell = document.createElement('div');
+            headerCell.className = 'k-map-cell header';
+            headerCell.innerHTML = labelHtml;
+            container.appendChild(headerCell);
+        });
+
+        headerLabels(this.rowLabels, ['A', 'B']).forEach((labelHtml, rIndex) => {
+            const rowHeader = document.createElement('div');
+            rowHeader.className = 'k-map-cell header';
+            rowHeader.innerHTML = labelHtml;
+            container.appendChild(rowHeader);
+            this.colLabels.forEach((cLabel, cIndex) => {
+                const cell = document.createElement('div');
+                cell.className = 'k-map-cell value-cell';
+                cell.dataset.r = rIndex;
+                cell.dataset.c = cIndex;
+                cell.textContent = '0';
+                container.appendChild(cell);
+                cells.push(cell);
+            });
+        });
+        return cells;
+    },
+    
+    createGroupBox(container, coord, color) {
+        const box = document.createElement('div');
+        box.className = 'group-box';
+        const grid = container.querySelector('.k-map-grid');
+        const firstCell = grid.querySelector('.value-cell');
+        if (!firstCell) return null;
+        const cellSize = firstCell.offsetWidth;
+        const gap = 4;
+        const headerSize = 50;
+
+        box.style.top = `${coord.r * (cellSize + gap) + headerSize + gap}px`;
+        box.style.left = `${coord.c * (cellSize + gap) + headerSize + gap}px`;
+        box.style.width = `${coord.w * cellSize + (coord.w - 1) * gap + 10}px`;
+        box.style.height = `${coord.h * cellSize + (coord.h - 1) * gap + 10}px`;
+        box.style.borderColor = color;
+        box.style.transform = 'translate(-5px, -5px)';
+        container.appendChild(box);
+        return box;
+    }
+};
+
+// --- チュートリアルモードのロジック ---
+const tutorialManager = {
+    currentProblemIndex: 0,
+    currentStep: 0,
+    cells: [],
+    problems: [],
+    init() {
+        this.select = document.getElementById('problem-select');
+        this.kMapContainer = document.getElementById('tutorial-k-map-container');
+        this.kMapGrid = document.getElementById('tutorial-k-map');
+        this.stepsContainer = document.getElementById('tutorial-steps-container');
+        this.prevBtn = document.getElementById('prev-btn');
+        this.nextBtn = document.getElementById('next-btn');
+        this.indicator = document.getElementById('step-indicator');
+        
+        this.problems = this.getProblemData();
+        this.problems.forEach((p, i) => {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = p.name;
+            this.select.appendChild(option);
+        });
+
+        this.cells = KMapUtils.createDOM('tutorial-k-map');
+        this.select.addEventListener('change', (e) => this.loadProblem(parseInt(e.target.value, 10)));
+        this.nextBtn.addEventListener('click', () => this.next());
+        this.prevBtn.addEventListener('click', () => this.prev());
+        this.loadProblem(0);
+    },
+    loadProblem(index) {
+        this.currentProblemIndex = index;
+        this.currentStep = 0;
+        this.update();
+    },
+    update() {
+        const problem = this.problems[this.currentProblemIndex];
+        const step = problem.steps[this.currentStep];
+        
+        this.prevBtn.disabled = this.currentStep === 0;
+        this.nextBtn.disabled = this.currentStep === problem.steps.length - 1;
+        this.indicator.textContent = `${this.currentStep + 1} / ${problem.steps.length}`;
+
+        this.stepsContainer.innerHTML = `
+            <h3 class="text-lg font-bold mb-2 text-blue-700">${step.title}</h3>
+            <div class="text-gray-700 leading-relaxed">${step.desc}</div>
+            <div class="simplification-area mt-3"></div>
+        `;
+        this.runAction(step);
+    },
+    next() {
+        if (this.currentStep < this.problems[this.currentProblemIndex].steps.length - 1) {
+            this.currentStep++;
+            this.update();
+        }
+    },
+    prev() {
+        if (this.currentStep > 0) {
+            this.currentStep--;
+            this.update();
+        }
+    },
+    runAction(step) {
+        this.kMapGrid.classList.remove('wrapping-y', 'wrapping-x');
+        this.cells.forEach(c => c.classList.remove('highlight-plot'));
+        this.kMapContainer.querySelectorAll('.group-box').forEach(b => b.remove());
+        
+        const problem = this.problems[this.currentProblemIndex];
+        this.cells.forEach(c => { c.textContent = '0'; c.classList.remove('one'); });
+        problem.plotCoords.forEach(coord => {
+            const cell = this.cells.find(c => c.dataset.r == coord.r && c.dataset.c == coord.c);
+            if (cell) { cell.textContent = '1'; cell.classList.add('one'); }
+        });
+        
+        for(let i=0; i < this.currentStep; i++) {
+            if (problem.steps[i].group) this.showGroup(problem.steps[i].group);
+        }
+
+        if (step.action === 'group') this.showGroup(step.group, true);
+        if (step.action === 'wrap_around_y') {
+            this.kMapGrid.classList.add('wrapping-y');
+            this.showGroup(step.group, true);
+        }
+        if (step.action === 'wrap_around_x') {
+            this.kMapGrid.classList.add('wrapping-x');
+            this.showGroup(step.group, true);
+        }
+        if (step.action === 'simplify') {
+            this.showGroup(step.group);
+            this.showSimplification(step.simplify);
+        }
+    },
+    showGroup(group, highlight = false) {
+        group.coords.forEach(coord => {
+            const box = KMapUtils.createGroupBox(this.kMapContainer, coord, group.color);
+            if(!box) return;
+            if (highlight) {
+                box.style.transition = 'all 0.2s';
+                box.style.transform = 'translate(-5px, -5px) scale(1.05)';
+            }
+            setTimeout(() => box.classList.add('show'), 50);
+        });
+    },
+    showSimplification(simplify) {
+        const area = this.stepsContainer.querySelector('.simplification-area');
+        let html = '<div class="flex justify-center space-x-4 p-2 bg-white rounded shadow-inner">';
+        simplify.vars.forEach(v => {
+            html += `<div class="var text-center">
+                        <div class="font-bold text-lg">${v.name}</div>
+                        <div class="text-gray-500">${v.values}</div>
+                     </div>`;
+        });
+        html += '</div>';
+        area.innerHTML = html;
+        
+        setTimeout(() => {
+            area.querySelectorAll('.var').forEach((el, i) => {
+                if (simplify.vars[i].action === 'strike') el.classList.add('strike');
+                if (simplify.vars[i].action === 'keep') el.classList.add('keep');
+            });
+            area.insertAdjacentHTML('afterend', `<div class="text-center mt-4 animated-term"><span class="text-2xl font-bold text-green-600 font-mono">${simplify.result}</span></div>`);
+        }, 500);
+    },
+    getProblemData() {
+        return [
+            {
+                name: "パターン1: 中央グループ",
+                plotCoords: [ {r:1,c:1}, {r:1,c:2}, {r:2,c:1}, {r:2,c:2} ],
+                steps: [
+                    { title: "ステップ1: '1'をプロット", desc: "論理式に従い、カルノー図に'1'を配置します。" },
+                    { title: "ステップ2: グループ化", desc: "中央の4つの'1'を、2x2の大きなグループとして囲みます。", action: 'group', group: { coords: [{r:1,c:1,w:2,h:2}], color: '#16a34a' } },
+                    { title: "ステップ3: 変数の消去を可視化", desc: "グループ内で値が変化する変数を消去します。'0'と'1'が混在する変数が消えます。", action: 'simplify', group: { coords: [{r:1,c:1,w:2,h:2}], color: '#16a34a' }, simplify: { vars: [{name:'A', values:'0,1', action:'strike'},{name:'B', values:'1', action:'keep'},{name:'C', values:'0,1', action:'strike'},{name:'D', values:'1', action:'keep'}], result: 'B・D' } },
+                    { title: "ステップ4: 完成", desc: "残った変数を組み合わせたものが、簡略化された論理式です。" }
+                ]
+            },
+            {
+                name: "パターン2: 左右の巻き込み",
+                plotCoords: [ {r:1,c:0}, {r:1,c:3}, {r:2,c:0}, {r:2,c:3} ],
+                steps: [
+                    { title: "ステップ1: '1'をプロット", desc: "左右の端に'1'を配置します。" },
+                    { title: "ステップ2: 巻き込みを可視化", desc: "左右の端は繋がっています。図が筒状になるイメージで、離れた'1'を一つのグループと考えます。", action: 'wrap_around_y', group: { coords: [{r:1,c:0,w:1,h:2}, {r:1,c:3,w:1,h:2}], color: '#c026d3' } },
+                    { title: "ステップ3: 変数の消去を可視化", desc: "この巻き込みグループ内で、値が変化する変数を消去します。", action: 'simplify', group: { coords: [{r:1,c:0,w:1,h:2}, {r:1,c:3,w:1,h:2}], color: '#c026d3' }, simplify: { vars: [{name:'A', values:'0,1', action:'strike'},{name:'B', values:'1', action:'keep'},{name:'C', values:'0,1', action:'strike'},{name:'D', values:'0', action:'keep'}], result: `B・${KMapUtils.not('D')}` } },
+                    { title: "ステップ4: 完成", desc: "残った変数を組み合わせたものが、簡略化された論理式です。" }
+                ]
+            },
+            {
+                name: "パターン3: 上下の巻き込み",
+                plotCoords: [ {r:0,c:2}, {r:0,c:3}, {r:3,c:2}, {r:3,c:3} ],
+                steps: [
+                    { title: "ステップ1: '1'をプロット", desc: "上下の端に'1'を配置します。" },
+                    { title: "ステップ2: 巻き込みを可視化", desc: "上下の端も繋がっています。今度は縦方向に筒状になるイメージです。", action: 'wrap_around_x', group: { coords: [{r:0,c:2,w:2,h:1}, {r:3,c:2,w:2,h:1}], color: '#db2777' } },
+                    { title: "ステップ3: 変数の消去を可視化", desc: "この巻き込みグループ内で、値が変化する変数を消去します。", action: 'simplify', group: { coords: [{r:0,c:2,w:2,h:1}, {r:3,c:2,w:2,h:1}], color: '#db2777' }, simplify: { vars: [{name:'A', values:'0,1', action:'strike'},{name:'B', values:'0', action:'keep'},{name:'C', values:'1', action:'keep'},{name:'D', values:'0,1', action:'strike'}], result: `${KMapUtils.not('B')}・C` } },
+                    { title: "ステップ4: 完成", desc: "残った変数を組み合わせたものが、簡略化された論理式です。" }
+                ]
+            }
+        ];
+    }
+};
+
+// --- フリー操作モードのロジック ---
+const freeMode = {
+    cells: [],
+    values: [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]],
+    init() {
+        this.cells = KMapUtils.createDOM('free-k-map');
+        this.cells.forEach(cell => {
+            cell.addEventListener('click', () => this.toggleCell(cell));
+        });
+        this.updateDisplay();
+    },
+    toggleCell(cell) {
+        const r = parseInt(cell.dataset.r);
+        const c = parseInt(cell.dataset.c);
+        this.values[r][c] = this.values[r][c] === 0 ? 1 : 0;
+        this.updateDisplay();
+    },
+    updateDisplay() {
+        this.cells.forEach(cell => {
+            const r = parseInt(cell.dataset.r);
+            const c = parseInt(cell.dataset.c);
+            const value = this.values[r][c];
+            cell.textContent = value;
+            cell.classList.toggle('one', value === 1);
+        });
+        document.getElementById('long-formula-display').innerHTML = this.getLongFormula() || '0';
+        document.getElementById('simple-formula-display').innerHTML = this.getSimplifiedFormula() || '0';
+    },
+    getLongFormula() {
+        const terms = [];
+        for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 4; c++) {
+                if (this.values[r][c] === 1) {
+                    const ab = KMapUtils.rowLabels[r];
+                    const cd = KMapUtils.colLabels[c];
+                    let term = '';
+                    term += ab[0] === '0' ? KMapUtils.not('A') : 'A'; term += '・';
+                    term += ab[1] === '0' ? KMapUtils.not('B') : 'B'; term += '・';
+                    term += cd[0] === '0' ? KMapUtils.not('C') : 'C'; term += '・';
+                    term += cd[1] === '0' ? KMapUtils.not('D') : 'D';
+                    terms.push(term);
+                }
+            }
+        }
+        if (terms.length === 16) return '1';
+        return terms.join(' + ');
+    },
+    getSimplifiedFormula() {
+        const minterms = [];
+        for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 4; c++) {
+                if (this.values[r][c] === 1) {
+                    minterms.push(parseInt(KMapUtils.rowLabels[r] + KMapUtils.colLabels[c], 2));
+                }
+            }
+        }
+        if (minterms.length === 0) return '0';
+        if (minterms.length === 16) return '1';
+
+        const primeImplicants = this.findPrimeImplicants(minterms);
+        const essentialTerms = this.selectEssentialTerms(primeImplicants, minterms);
+
+        return essentialTerms.map(term => this.termToString(term)).join(' + ');
+    },
+    findPrimeImplicants(minterms) {
+        let groups = minterms.map(m => ({ term: m, mask: 0, used: false }));
+        const primeImplicants = [];
+
+        while (true) {
+            const nextGroups = [];
+            let changed = false;
+            for (let i = 0; i < groups.length; i++) {
+                for (let j = i + 1; j < groups.length; j++) {
+                    if (groups[i].mask === groups[j].mask) {
+                        const diff = groups[i].term ^ groups[j].term;
+                        if ((diff & (diff - 1)) === 0) { // is power of 2
+                            nextGroups.push({ term: groups[i].term, mask: groups[i].mask | diff, used: false });
+                            groups[i].used = true;
+                            groups[j].used = true;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+            groups.forEach(g => { if (!g.used) primeImplicants.push(g); });
+            if (!changed) break;
+            groups = [...new Map(nextGroups.map(item => [JSON.stringify(item), item])).values()];
+        }
+        return [...new Map(primeImplicants.map(item => [JSON.stringify(item), item])).values()];
+    },
+    selectEssentialTerms(primeImplicants, minterms) {
+        const finalTerms = [];
+        let uncoveredMinterms = new Set(minterms);
+
+        const chart = new Map(minterms.map(m => [m, []]));
+        primeImplicants.forEach(pi => {
+            minterms.forEach(m => {
+                if ((pi.term & ~pi.mask) === (m & ~pi.mask)) {
+                    chart.get(m).push(pi);
+                }
+            });
+        });
+
+        chart.forEach((pis, m) => {
+            if (pis.length === 1) {
+                const essential = pis[0];
+                if (!finalTerms.some(t => t.term === essential.term && t.mask === essential.mask)) {
+                    finalTerms.push(essential);
+                }
+            }
+        });
+
+        finalTerms.forEach(pi => {
+            minterms.forEach(m => {
+                if ((pi.term & ~pi.mask) === (m & ~pi.mask)) {
+                    uncoveredMinterms.delete(m);
+                }
+            });
+        });
+
+        let remainingPIs = primeImplicants.filter(pi => !finalTerms.some(t => t.term === pi.term && t.mask === pi.mask));
+        while (uncoveredMinterms.size > 0) {
+            let bestPI = null;
+            let maxCover = 0;
+            remainingPIs.forEach(pi => {
+                let coverCount = 0;
+                uncoveredMinterms.forEach(m => {
+                    if ((pi.term & ~pi.mask) === (m & ~pi.mask)) {
+                        coverCount++;
+                    }
+                });
+                if (coverCount > maxCover) {
+                    maxCover = coverCount;
+                    bestPI = pi;
+                }
+            });
+            if (!bestPI) break;
+            finalTerms.push(bestPI);
+            uncoveredMinterms.forEach(m => {
+                if ((bestPI.term & ~bestPI.mask) === (m & ~bestPI.mask)) {
+                    uncoveredMinterms.delete(m);
+                }
+            });
+            remainingPIs = remainingPIs.filter(pi => !(pi.term === bestPI.term && pi.mask === bestPI.mask));
+        }
+        return finalTerms;
+    },
+    termToString(term) {
+        const parts = [];
+        const binary = term.term.toString(2).padStart(4, '0');
+        const mask = term.mask.toString(2).padStart(4, '0');
+        for (let i = 0; i < 4; i++) {
+            if (mask[i] === '0') {
+                parts.push(binary[i] === '0' ? KMapUtils.not(KMapUtils.termVars[i]) : KMapUtils.termVars[i]);
+            }
+        }
+        return parts.join('・');
+    }
+};
+</script>
+</body>
+</html>
