@@ -22,6 +22,10 @@
         body {
             font-family: 'Inter', sans-serif;
             overscroll-behavior: none; 
+            user-select: none; /* ホームスクリーンでのテキスト選択を無効化 */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
 
         #wallpaper {
@@ -310,10 +314,10 @@
                 { name: 'マップ', url: 'maps://', icon: 'fa-solid fa-map-location-dot', color: '#34A853', type: 'url_scheme'},
                 { name: '設定', url: 'settings', icon: 'fa-solid fa-gear', color: '#8e8e93', type: 'action' },
                 { name: 'ターミナル', url: 'terminal', icon: 'fa-solid fa-terminal', color: '#000000', type: 'terminal' },
-                { name: 'WikiChree.COM', url: 'https://wikichree.com/', icon: 'fa-solid fa-leaf', color: '#4CAF50', windowed: true, type: 'web' },
+                { name: 'WikiChree.COM', url: 'https://wikichree.com/', icon: 'favicon', color: '#4CAF50', windowed: true, type: 'web' },
                 { name: 'pitq docs', url: 'https://pitan76.github.io/docs/', icon: 'fa-solid fa-book', color: '#FF6B35', windowed: true, type: 'web' },
                 { name: 'カルノー図', url: 'https://pitan76.github.io/docs/2025-07-07_%E3%82%AB%E3%83%AB%E3%83%8E%E3%83%BC%E5%9B%B3.html', icon: 'fa-solid fa-graph', color: '#FF6B35', windowed: true, type: 'web' },
-                { name: 'ホームページ', url: 'https://pitan76.net/', icon: 'fa-solid fa-home', color: '#000000', windowed: true, type: 'web' },
+                { name: 'ホームページ', url: 'https://pitan76.net/', icon: 'favicon', color: '#000000', windowed: true, type: 'web' },
                 { name: 'ボ対検索ツール', url: 'https://vps-search.pitan76.net/', icon: 'favicon', color: '#000000', windowed: true, type: 'web' },
                 { name: 'GitHub', url: 'https://github.com', icon: 'fa-brands fa-github', color: '#181717', windowed: true, type: 'web' },
             ]
@@ -396,6 +400,20 @@
                 iconBg.style.backgroundImage = `url(${app.customImage})`;
                 iconBg.style.backgroundSize = 'cover';
                 iconBg.style.backgroundPosition = 'center';
+            } else if (app.icon === 'favicon' && app.url) {
+                // faviconキーワードが指定されている場合
+                try {
+                    const domain = new URL(app.url).hostname;
+                    const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+                    iconBg.style.backgroundImage = `url(${faviconUrl})`;
+                    iconBg.style.backgroundSize = 'cover';
+                    iconBg.style.backgroundPosition = 'center';
+                } catch (e) {
+                    // URLが無効な場合はデフォルトアイコンを使用
+                    const icon = document.createElement('i');
+                    icon.className = 'fa-solid fa-globe';
+                    iconBg.appendChild(icon);
+                }
             } else if (app.icon && app.icon.startsWith('http')) {
                 // 既存のHTTP URLアイコン
                 iconBg.style.backgroundImage = `url(${app.icon})`;
@@ -643,6 +661,8 @@
             const browserContent = `
                 <div style="display: flex; flex-direction: column; height: 100%;">
                     <div style="display: flex; align-items: center; padding: 10px; background: rgba(0,0,0,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <button id="back-btn" style="padding: 8px 12px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; margin-right: 5px;">←</button>
+                        <button id="forward-btn" style="padding: 8px 12px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; margin-right: 10px;">→</button>
                         <input type="url" id="url-input" placeholder="URLを入力してください" 
                                style="flex: 1; padding: 8px; border: none; border-radius: 5px; background: #333; color: white; margin-right: 10px; font-size: 16px; -webkit-appearance: none;"
                                value="https://www.google.com">
@@ -658,6 +678,8 @@
             setTimeout(() => {
                 const urlInput = document.getElementById('url-input');
                 const navBtn = document.getElementById('navigate-btn');
+                const backBtn = document.getElementById('back-btn');
+                const forwardBtn = document.getElementById('forward-btn');
                 const browserFrame = document.getElementById('browser-frame');
                 
                 if (urlInput && navBtn && browserFrame) {
@@ -673,6 +695,27 @@
                     
                     // ボタンクリック/タッチでの移動
                     addClickAndTouch(navBtn, navigate);
+                    
+                    // 戻る・進むボタンの設定
+                    if (backBtn) {
+                        addClickAndTouch(backBtn, () => {
+                            try {
+                                browserFrame.contentWindow.history.back();
+                            } catch (e) {
+                                showToast('戻る操作ができませんでした');
+                            }
+                        });
+                    }
+                    
+                    if (forwardBtn) {
+                        addClickAndTouch(forwardBtn, () => {
+                            try {
+                                browserFrame.contentWindow.history.forward();
+                            } catch (e) {
+                                showToast('進む操作ができませんでした');
+                            }
+                        });
+                    }
                     
                     // タッチで確実にフォーカス
                     urlInput.addEventListener('touchstart', (e) => {
@@ -931,6 +974,13 @@
                 isWindowDragging = false; header.style.cursor = 'move'; 
             };
 
+            // タイトルバーダブルクリックで最大化/復元
+            header.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                maxBtn.click(); // 最大化ボタンと同じ動作
+            });
+
             header.addEventListener('mousedown', startDrag); 
             document.addEventListener('mousemove', doDrag); 
             document.addEventListener('mouseup', stopDrag);
@@ -1012,8 +1062,43 @@
             backButton.classList.remove('hidden');
         }
 
-        // 戻るボタンのクリックイベント - 前のページに戻る
+        // 戻るボタンのクリックイベント
         addClickAndTouch(backButton, () => {
+            // ウィンドウが開いている場合は最前面のウィンドウ内で戻る操作を実行
+            const visibleWindows = Array.from(document.querySelectorAll('.window:not(.minimized)'));
+            if (visibleWindows.length > 0) {
+                const topWindow = visibleWindows.reduce((a, b) => parseInt(a.style.zIndex || 0) > parseInt(b.style.zIndex || 0) ? a : b);
+                
+                // まずブラウザウィンドウの専用iframeを確認
+                const browserFrame = topWindow.querySelector('#browser-frame');
+                if (browserFrame) {
+                    try {
+                        browserFrame.contentWindow.history.back();
+                        return;
+                    } catch (e) {
+                        showToast('このページでは戻る操作はサポートされていません');
+                        return;
+                    }
+                }
+                
+                // その他のiframeを含むウィンドウの場合も戻る操作を試行
+                const iframe = topWindow.querySelector('iframe');
+                if (iframe) {
+                    try {
+                        iframe.contentWindow.history.back();
+                        return;
+                    } catch (e) {
+                        showToast('このページでは戻る操作はサポートされていません');
+                        return;
+                    }
+                }
+                
+                // iframeがないウィンドウの場合はメッセージを表示
+                showToast('このウィンドウでは戻る操作はサポートされていません');
+                return;
+            }
+            
+            // ウィンドウがない場合は前のページに戻る
             if (state.currentPage > 0) {
                 state.currentPage--;
                 saveData();
