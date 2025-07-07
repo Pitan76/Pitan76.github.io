@@ -20,6 +20,8 @@
             gap: 4px;
             transition: transform 0.8s ease-in-out;
             transform-style: preserve-3d;
+            min-width: 300px;
+            min-height: 300px;
         }
         .k-map-cell {
             background-color: #e2e8f0;
@@ -33,7 +35,14 @@
             border-radius: 4px;
             transform-style: preserve-3d;
         }
-        .k-map-cell.header { background-color: #dbeafe; font-size: 0.8rem; line-height: 1.2; }
+        .k-map-cell.header { 
+            background-color: #dbeafe; 
+            font-size: 0.8rem; 
+            line-height: 1.2; 
+            min-height: 50px;
+            white-space: nowrap;
+            overflow: visible;
+        }
         .k-map-cell.value-cell { background-color: #ffffff; cursor: pointer; font-size: 1.5rem; color: #475569; }
         .k-map-cell.value-cell.one { background-color: #a7f3d0; color: #065f46; transform: scale(1.05); box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
         .k-map-cell.highlight-plot { background-color: #fef08a; transform: scale(1.15); z-index: 10; }
@@ -163,7 +172,7 @@ const KMapUtils = {
         const cells = [];
         const corner = document.createElement('div');
         corner.className = 'k-map-cell';
-        corner.innerHTML = `<span class="text-xs">AB<span class="font-bold text-lg">＼</span>CD</span>`;
+        corner.innerHTML = `<span class="text-xs">AB / CD</span>`;
         container.appendChild(corner);
         
         const headerLabels = (labels, vars) => labels.map(label => {
