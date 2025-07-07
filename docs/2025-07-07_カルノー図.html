@@ -109,7 +109,7 @@
                     <label for="problem-select" class="block text-lg font-bold mb-2">学習パターンを選択</label>
                     <select id="problem-select" class="w-full p-2 border border-gray-300 rounded-lg bg-white"></select>
                 </div>
-                <div id="tutorial-k-map-container" class="relative mb-4 p-2" style="perspective: 1200px;">
+                <div id="tutorial-k-map-container" class="relative mb-4 p-2 flex justify-center" style="perspective: 1200px;">
                     <div id="tutorial-k-map" class="k-map-grid"></div>
                 </div>
                 <div id="tutorial-steps-container" class="bg-gray-50 p-4 rounded-lg min-h-[150px]"></div>
@@ -122,7 +122,7 @@
 
             <div id="free-mode" class="hidden">
                  <p class="text-center text-gray-600 mb-4">下のカルノー図のマスをクリックして '0' と '1' を切り替え、論理式がどう変化するか試してみましょう。</p>
-                <div id="free-k-map-container" class="relative mb-4 p-2">
+                <div id="free-k-map-container" class="relative mb-4 p-2 flex justify-center">
                     <div id="free-k-map" class="k-map-grid"></div>
                 </div>
                 <div>
@@ -220,12 +220,12 @@ const KMapUtils = {
         const gap = 4;
         const headerSize = 60;
 
-        box.style.top = `${coord.r * (cellSize + gap) + headerSize + gap}px`;
-        box.style.left = `${coord.c * (cellSize + gap) + headerSize + gap}px`;
-        box.style.width = `${coord.w * cellSize + (coord.w - 1) * gap + 10}px`;
-        box.style.height = `${coord.h * cellSize + (coord.h - 1) * gap + 10}px`;
+        box.style.top = `${coord.r * (cellSize + gap) + headerSize + gap - 4}px`;
+        box.style.left = `${coord.c * (cellSize + gap) + headerSize + gap - 4}px`;
+        box.style.width = `${coord.w * cellSize + (coord.w - 1) * gap + 24}px`;
+        box.style.height = `${coord.h * cellSize + (coord.h - 1) * gap + 24}px`;
         box.style.borderColor = color;
-        box.style.transform = 'translate(-5px, -5px)';
+        box.style.transform = 'translate(0, 0)';
         container.appendChild(box);
         return box;
     }
@@ -324,13 +324,26 @@ const tutorialManager = {
     },
     showGroup(group, highlight = false) {
         group.coords.forEach(coord => {
-            const box = KMapUtils.createGroupBox(this.kMapContainer, coord, group.color);
-            if(!box) return;
-            if (highlight) {
-                box.style.transition = 'all 0.2s';
-                box.style.transform = 'translate(-5px, -5px) scale(1.05)';
+            // 角の4つ組みなど、個別セルの場合は1つずつボックスを作成
+            if (coord.w === 1 && coord.h === 1 && group.coords.length > 1) {
+                const box = KMapUtils.createGroupBox(this.kMapContainer, coord, group.color);
+                if(!box) return;
+                box.style.borderRadius = '8px';
+                if (highlight) {
+                    box.style.transition = 'all 0.2s';
+                    box.style.transform = 'scale(1.02)';
+                }
+                setTimeout(() => box.classList.add('show'), 50);
+            } else {
+                // 通常の矩形グループ
+                const box = KMapUtils.createGroupBox(this.kMapContainer, coord, group.color);
+                if(!box) return;
+                if (highlight) {
+                    box.style.transition = 'all 0.2s';
+                    box.style.transform = 'scale(1.02)';
+                }
+                setTimeout(() => box.classList.add('show'), 50);
             }
-            setTimeout(() => box.classList.add('show'), 50);
         });
     },
     showSimplification(simplify) {
@@ -366,7 +379,27 @@ const tutorialManager = {
                 ]
             },
             {
-                name: "パターン2: 左右の巻き込み",
+                name: "パターン2: 横1行グループ",
+                plotCoords: [ {r:2,c:0}, {r:2,c:1}, {r:2,c:2}, {r:2,c:3} ],
+                steps: [
+                    { title: "ステップ1: '1'をプロット", desc: "1つの行全体に'1'を配置します。" },
+                    { title: "ステップ2: 横1行のグループ化", desc: "横方向に並んだ4つの'1'を一つのグループとして囲みます。", action: 'group', group: { coords: [{r:2,c:0,w:4,h:1}], color: '#ea580c' } },
+                    { title: "ステップ3: 変数の消去を可視化", desc: "横方向のグループでは、C変数とD変数が全パターン含まれるので消去されます。", action: 'simplify', group: { coords: [{r:2,c:0,w:4,h:1}], color: '#ea580c' }, simplify: { vars: [{name:'A', values:'1', action:'keep'},{name:'B', values:'1', action:'keep'},{name:'C', values:'0,1', action:'strike'},{name:'D', values:'0,1', action:'strike'}], result: 'A・B' } },
+                    { title: "ステップ4: 完成", desc: "A=1, B=1が固定で、C,Dは任意なので、論理式はA・Bとなります。" }
+                ]
+            },
+            {
+                name: "パターン3: 縦1列グループ",
+                plotCoords: [ {r:0,c:1}, {r:1,c:1}, {r:2,c:1}, {r:3,c:1} ],
+                steps: [
+                    { title: "ステップ1: '1'をプロット", desc: "1つの列全体に'1'を配置します。" },
+                    { title: "ステップ2: 縦1列のグループ化", desc: "縦方向に並んだ4つの'1'を一つのグループとして囲みます。", action: 'group', group: { coords: [{r:0,c:1,w:1,h:4}], color: '#7c3aed' } },
+                    { title: "ステップ3: 変数の消去を可視化", desc: "縦方向のグループでは、A変数とB変数が全パターン含まれるので消去されます。", action: 'simplify', group: { coords: [{r:0,c:1,w:1,h:4}], color: '#7c3aed' }, simplify: { vars: [{name:'A', values:'0,1', action:'strike'},{name:'B', values:'0,1', action:'strike'},{name:'C', values:'0', action:'keep'},{name:'D', values:'1', action:'keep'}], result: `${KMapUtils.not('C')}・D` } },
+                    { title: "ステップ4: 完成", desc: "C=0, D=1が固定で、A,Bは任意なので、論理式は￢C・Dとなります。" }
+                ]
+            },
+            {
+                name: "パターン4: 左右の巻き込み",
                 plotCoords: [ {r:1,c:0}, {r:1,c:3}, {r:2,c:0}, {r:2,c:3} ],
                 steps: [
                     { title: "ステップ1: '1'をプロット", desc: "左右の端に'1'を配置します。" },
@@ -376,13 +409,23 @@ const tutorialManager = {
                 ]
             },
             {
-                name: "パターン3: 上下の巻き込み",
+                name: "パターン5: 上下の巻き込み",
                 plotCoords: [ {r:0,c:2}, {r:0,c:3}, {r:3,c:2}, {r:3,c:3} ],
                 steps: [
                     { title: "ステップ1: '1'をプロット", desc: "上下の端に'1'を配置します。" },
                     { title: "ステップ2: 巻き込みを可視化", desc: "上下の端も繋がっています。今度は縦方向に筒状になるイメージです。", action: 'wrap_around_x', group: { coords: [{r:0,c:2,w:2,h:1}, {r:3,c:2,w:2,h:1}], color: '#db2777' } },
                     { title: "ステップ3: 変数の消去を可視化", desc: "この巻き込みグループ内で、値が変化する変数を消去します。", action: 'simplify', group: { coords: [{r:0,c:2,w:2,h:1}, {r:3,c:2,w:2,h:1}], color: '#db2777' }, simplify: { vars: [{name:'A', values:'0,1', action:'strike'},{name:'B', values:'0', action:'keep'},{name:'C', values:'1', action:'keep'},{name:'D', values:'0,1', action:'strike'}], result: `${KMapUtils.not('B')}・C` } },
                     { title: "ステップ4: 完成", desc: "残った変数を組み合わせたものが、簡略化された論理式です。" }
+                ]
+            },
+            {
+                name: "パターン6: 角の4つ組み",
+                plotCoords: [ {r:0,c:0}, {r:0,c:3}, {r:3,c:0}, {r:3,c:3} ],
+                steps: [
+                    { title: "ステップ1: '1'をプロット", desc: "カルノー図の4つの角に'1'を配置します。" },
+                    { title: "ステップ2: 角の巻き込みグループ", desc: "4つの角は上下左右の巻き込みにより一つのグループを形成します。トーラス状（ドーナツ型）のつながりです。", action: 'group', group: { coords: [{r:0,c:0,w:1,h:1}, {r:0,c:3,w:1,h:1}, {r:3,c:0,w:1,h:1}, {r:3,c:3,w:1,h:1}], color: '#059669' } },
+                    { title: "ステップ3: 変数の消去を可視化", desc: "この特殊なグループでは、A変数とC変数が全パターン含まれるので消去されます。", action: 'simplify', group: { coords: [{r:0,c:0,w:1,h:1}, {r:0,c:3,w:1,h:1}, {r:3,c:0,w:1,h:1}, {r:3,c:3,w:1,h:1}], color: '#059669' }, simplify: { vars: [{name:'A', values:'0,1', action:'strike'},{name:'B', values:'0', action:'keep'},{name:'C', values:'0,1', action:'strike'},{name:'D', values:'0', action:'keep'}], result: `${KMapUtils.not('B')}・${KMapUtils.not('D')}` } },
+                    { title: "ステップ4: 完成", desc: "B=0, D=0が固定で、A,Cは任意なので、論理式は￢B・￢Dとなります。" }
                 ]
             }
         ];
