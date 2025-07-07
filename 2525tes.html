@@ -293,6 +293,16 @@
         const LONG_PRESS_DELAY = 500; // 長押し判定時間（ms）
         const MOVE_THRESHOLD = 10; // 移動判定閾値（px）
 
+        // タッチとクリック両方に対応するイベントハンドラー
+        function addClickAndTouch(element, handler) {
+            if (!element) return;
+            element.addEventListener('click', handler);
+            element.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                handler(e);
+            });
+        }
+
         const defaultApps = [
             [
                 { name: 'カメラ', url: 'camera', icon: 'fa-solid fa-camera', color: '#555', type: 'native' },
@@ -548,16 +558,7 @@
         function showEditModal(app, pageIndex, appIndex, location) {
             const modal = document.createElement('div');
             modal.className = 'modal-backdrop';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            modal.style.zIndex = '999';
-            modal.style.display = 'flex';
-            modal.style.alignItems = 'center';
-            modal.style.justifyContent = 'center';
+            modal.id = 'edit-modal-backdrop';
             
             const editModal = document.createElement('div');
             editModal.className = 'edit-modal';
@@ -569,27 +570,30 @@
                 <input type="url" id="edit-custom-image" placeholder="カスタム画像URL（オプション）" value="${app.customImage || ''}">
                 <input type="color" id="edit-color" value="${app.color || '#007AFF'}">
                 <div class="buttons">
-                    <button class="cancel-btn" onclick="closeEditModal()">キャンセル</button>
-                    <button class="delete-btn" onclick="deleteApp(${pageIndex}, ${appIndex}, '${location}')">削除</button>
-                    <button class="save-btn" onclick="saveAppEdit(${pageIndex}, ${appIndex}, '${location}')">保存</button>
+                    <button class="cancel-btn">キャンセル</button>
+                    <button class="delete-btn">削除</button>
+                    <button class="save-btn">保存</button>
                 </div>
             `;
             
             modal.appendChild(editModal);
             document.body.appendChild(modal);
             
+            // イベントリスナーを追加
+            addClickAndTouch(editModal.querySelector('.cancel-btn'), closeEditModal);
+            addClickAndTouch(editModal.querySelector('.delete-btn'), () => deleteApp(pageIndex, appIndex, location));
+            addClickAndTouch(editModal.querySelector('.save-btn'), () => saveAppEdit(pageIndex, appIndex, location));
+            
             // モーダル外クリックで閉じる
-            modal.addEventListener('click', (e) => {
+            addClickAndTouch(modal, (e) => {
                 if (e.target === modal) closeEditModal();
             });
-            
-            window.currentEditModal = modal;
         }
         
         function closeEditModal() {
-            if (window.currentEditModal) {
-                document.body.removeChild(window.currentEditModal);
-                window.currentEditModal = null;
+            const modal = document.getElementById('edit-modal-backdrop');
+            if (modal) {
+                document.body.removeChild(modal);
             }
         }
         
@@ -619,18 +623,18 @@
         }
         
         function deleteApp(pageIndex, appIndex, location) {
-            if (!confirm('このアプリを削除しますか？')) return;
-            
-            if (location === 'dock') {
-                state.dockApps.splice(appIndex, 1);
-            } else {
-                state.apps[pageIndex].splice(appIndex, 1);
-            }
-            
-            saveData();
-            render();
-            closeEditModal();
-            showToast('アプリを削除しました');
+            showConfirm('このアプリを削除しますか？', () => {
+                if (location === 'dock') {
+                    state.dockApps.splice(appIndex, 1);
+                } else {
+                    state.apps[pageIndex].splice(appIndex, 1);
+                }
+                
+                saveData();
+                render();
+                closeEditModal();
+                showToast('アプリを削除しました');
+            });
         }
         
         // ブラウザウィンドウを作成
@@ -639,9 +643,9 @@
                 <div style="display: flex; flex-direction: column; height: 100%;">
                     <div style="display: flex; align-items: center; padding: 10px; background: rgba(0,0,0,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
                         <input type="url" id="url-input" placeholder="URLを入力してください" 
-                               style="flex: 1; padding: 8px; border: none; border-radius: 5px; background: #333; color: white; margin-right: 10px;"
+                               style="flex: 1; padding: 8px; border: none; border-radius: 5px; background: #333; color: white; margin-right: 10px; font-size: 16px; -webkit-appearance: none;"
                                value="https://www.google.com">
-                        <button id="navigate-btn" style="padding: 8px 15px; background: #007AFF; color: white; border: none; border-radius: 5px; cursor: pointer;">移動</button>
+                        <button id="navigate-btn" style="padding: 8px 15px; background: #007AFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">移動</button>
                     </div>
                     <iframe id="browser-frame" src="https://www.google.com" style="flex: 1; border: none; background: white;"></iframe>
                 </div>
@@ -653,29 +657,36 @@
             setTimeout(() => {
                 const urlInput = document.getElementById('url-input');
                 const navBtn = document.getElementById('navigate-btn');
+                const browserFrame = document.getElementById('browser-frame');
                 
-                if (urlInput && navBtn) {
+                if (urlInput && navBtn && browserFrame) {
+                    const navigate = () => navigateToUrl(urlInput, browserFrame, navBtn);
+                    
                     // Enter キーでの移動
                     urlInput.addEventListener('keypress', (e) => {
                         if (e.key === 'Enter') {
-                            navigateToUrl();
+                            e.preventDefault();
+                            navigate();
                         }
                     });
                     
-                    // ボタンクリックでの移動
-                    navBtn.addEventListener('click', () => {
-                        navigateToUrl();
+                    // ボタンクリック/タッチでの移動
+                    addClickAndTouch(navBtn, navigate);
+                    
+                    // タッチで確実にフォーカス
+                    urlInput.addEventListener('touchstart', (e) => {
+                        e.stopPropagation();
+                        setTimeout(() => urlInput.focus(), 100);
                     });
+                    
+                    // ウィンドウ表示時にフォーカス
+                    setTimeout(() => urlInput.focus(), 200);
                 }
             }, 100);
         }
         
         // URL移動機能
-        function navigateToUrl() {
-            const urlInput = document.getElementById('url-input');
-            const iframe = document.getElementById('browser-frame');
-            const navBtn = document.getElementById('navigate-btn');
-            
+        function navigateToUrl(urlInput, iframe, navBtn) {
             if (!urlInput || !iframe) return;
             
             let url = urlInput.value.trim();
@@ -727,6 +738,7 @@
                 <h3 class="text-lg font-bold mb-4">設定</h3>
                 <button id="add-app-btn" class="w-full text-left p-3 bg-gray-700 rounded-lg mb-2 hover:bg-gray-600">アプリを追加</button>
                 <button id="add-page-btn" class="w-full text-left p-3 bg-gray-700 rounded-lg mb-2 hover:bg-gray-600">新しいページを追加</button>
+                <button id="edit-page-btn" class="w-full text-left p-3 bg-gray-700 rounded-lg mb-2 hover:bg-gray-600">現在のページを編集</button>
                 <button id="change-wallpaper-btn" class="w-full text-left p-3 bg-gray-700 rounded-lg mb-2 hover:bg-gray-600">壁紙を変更</button>
                 <button id="reset-settings-btn" class="w-full text-left p-3 bg-red-800 rounded-lg mb-2 hover:bg-red-700">設定をリセット</button>
                 <div class="flex justify-end mt-4">
@@ -736,15 +748,45 @@
              addAppModal.appendChild(settingsModal);
              addAppModal.classList.remove('hidden');
 
-             document.getElementById('add-app-btn').onclick = openAddAppModal;
-             document.getElementById('add-page-btn').onclick = addPage;
-             document.getElementById('change-wallpaper-btn').onclick = () => wallpaperInput.click();
-             document.getElementById('reset-settings-btn').onclick = resetSettings;
-             document.getElementById('close-settings').onclick = () => addAppModal.classList.add('hidden');
+             addClickAndTouch(document.getElementById('add-app-btn'), openAddAppModal);
+             addClickAndTouch(document.getElementById('add-page-btn'), addPage);
+             addClickAndTouch(document.getElementById('edit-page-btn'), editCurrentPage);
+             addClickAndTouch(document.getElementById('change-wallpaper-btn'), () => wallpaperInput.click());
+             addClickAndTouch(document.getElementById('reset-settings-btn'), resetSettings);
+             addClickAndTouch(document.getElementById('close-settings'), () => addAppModal.classList.add('hidden'));
         }
         
-        function addPage() { state.apps.push([]); saveData(); render(); showToast('新しいページを追加しました。'); }
-        function resetSettings() { showConfirm('すべての設定がリセットされます。よろしいですか？', () => { localStorage.removeItem(STORAGE_KEY); location.reload(); }); }
+        function addPage() { 
+            state.apps.push([]); 
+            saveData(); 
+            render(); 
+            addAppModal.classList.add('hidden');
+            showToast('新しいページを追加しました。'); 
+        }
+        
+        function editCurrentPage() {
+            addAppModal.classList.add('hidden');
+            if (state.apps.length <= 1) {
+                showToast('削除できるページがありません。');
+                return;
+            }
+            showConfirm(`現在のページ（${state.currentPage + 1}ページ目）を削除しますか？`, () => {
+                state.apps.splice(state.currentPage, 1);
+                if (state.currentPage >= state.apps.length) {
+                    state.currentPage = state.apps.length - 1;
+                }
+                saveData();
+                render();
+                showToast('ページを削除しました。');
+            });
+        }
+        
+        function resetSettings() { 
+            showConfirm('すべての設定がリセットされます。よろしいですか？', () => { 
+                localStorage.removeItem(STORAGE_KEY); 
+                location.reload(); 
+            }); 
+        }
         wallpaperInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -775,19 +817,20 @@
             addAppModal.appendChild(addModalContent);
             addAppModal.classList.remove('hidden');
 
-            document.getElementById('cancel-add-app').onclick = () => addAppModal.classList.add('hidden');
-            document.getElementById('confirm-add-app').onclick = () => {
+            addClickAndTouch(document.getElementById('cancel-add-app'), () => addAppModal.classList.add('hidden'));
+            addClickAndTouch(document.getElementById('confirm-add-app'), () => {
                 const name = document.getElementById('appName').value, url = document.getElementById('appUrl').value;
                 const icon = document.getElementById('appIcon').value, color = document.getElementById('appColor').value;
                 const customImage = document.getElementById('appCustomImage').value;
                 const windowed = document.getElementById('appWindowed').checked;
-                if (name && url && icon) {
-                    const newApp = { name, url, icon, customImage, color, windowed, type: windowed ? 'url_scheme' : 'browser' };
+                if (name && url) {
+                    const newApp = { name, url, icon, customImage, color, windowed, type: windowed ? 'web' : 'url_scheme' };
                     const targetPage = state.apps[state.currentPage] || state.apps[state.apps.length - 1];
                     targetPage.push(newApp);
                     saveData(); render(); addAppModal.classList.add('hidden');
-                } else { showToast('アプリ名、URL、アイコンは必須項目です。'); }
-            };
+                    showToast('アプリを追加しました。');
+                } else { showToast('アプリ名とURLは必須です。'); }
+            });
         }
 
         function createWindow(title, url, customContent = null, titleIcon = null) {
@@ -828,21 +871,22 @@
             });
             win.addEventListener('touchstart', () => {
                 win.style.zIndex = ++windowZIndex;
-            });
+            }, { passive: true });
 
             const header = win.querySelector('.window-header');
-            win.querySelector('.close-btn').onclick = () => {
+            const closeBtn = win.querySelector('.close-btn');
+            addClickAndTouch(closeBtn, () => {
                 // 最小化アイコンも削除
                 const minIcon = document.querySelector(`[data-window-id="${win.dataset.windowId}"]`);
                 if (minIcon) minIcon.remove();
                 minimizedWindows = minimizedWindows.filter(w => w.element !== win);
                 win.remove();
                 updateBackButtonVisibility();
-            };
+            });
             
             const maxBtn = win.querySelector('.max-btn');
             let originalRect = null;
-            maxBtn.onclick = () => {
+            addClickAndTouch(maxBtn, () => {
                 win.classList.toggle('maximized');
                 if (win.classList.contains('maximized')) {
                     originalRect = { top: win.style.top, left: win.style.left, width: win.style.width, height: win.style.height };
@@ -851,16 +895,17 @@
                     if(originalRect) { win.style.top = originalRect.top; win.style.left = originalRect.left; win.style.width = originalRect.width; win.style.height = originalRect.height; }
                     maxBtn.innerHTML = '<i class="fa-regular fa-window-maximize"></i>';
                 }
-            };
+            });
 
             // 最小化機能
             const windowId = 'win_' + Date.now();
             win.dataset.windowId = windowId;
-            win.querySelector('.min-btn').onclick = () => {
+            const minBtn = win.querySelector('.min-btn');
+            addClickAndTouch(minBtn, () => {
                 win.classList.add('minimized');
-                createMinimizedIcon(win, title, windowId);
+                createMinimizedIcon(win, title, windowId, titleIcon);
                 updateBackButtonVisibility();
-            };
+            });
             
             // ウィンドウドラッグ機能
             let isWindowDragging = false, offsetX, offsetY;
@@ -935,7 +980,7 @@
             document.addEventListener('touchend', stopResize, { passive: false });
         }
 
-        function createMinimizedIcon(windowElement, title, windowId) {
+        function createMinimizedIcon(windowElement, title, windowId, iconClass) {
             const minIcon = document.createElement('div');
             minIcon.className = 'minimized-icon';
             minIcon.dataset.windowId = windowId;
@@ -945,17 +990,17 @@
             minIcon.style.right = `${20 + (existingIcons * 70)}px`;
             minIcon.style.top = '20px';
             
-            minIcon.innerHTML = '<i class="fa-solid fa-window-restore"></i>';
+            minIcon.innerHTML = iconClass ? `<i class="${iconClass}"></i>` : '<i class="fa-solid fa-window-restore"></i>';
             minIcon.title = title;
             
             // クリックで復元
-            minIcon.onclick = () => {
+            addClickAndTouch(minIcon, () => {
                 windowElement.classList.remove('minimized');
                 windowElement.style.zIndex = ++windowZIndex;
                 minIcon.remove();
                 minimizedWindows = minimizedWindows.filter(w => w.element !== windowElement);
                 updateBackButtonVisibility();
-            };
+            });
             
             document.body.appendChild(minIcon);
             minimizedWindows.push({ element: windowElement, icon: minIcon, title });
@@ -967,25 +1012,47 @@
         }
 
         // 戻るボタンのクリックイベント - 前のページに戻る
-        backButton.addEventListener('click', () => {
-            // ブラウザの戻る操作
-            if (window.history.length > 1) {
-                window.history.back();
+        addClickAndTouch(backButton, () => {
+            if (state.currentPage > 0) {
+                state.currentPage--;
+                saveData();
+                render();
             } else {
-                showToast('戻るページがありません');
+                showToast('最初のページです');
             }
         });
 
         let touchStartX = 0, isPageSwiping = false;
         let mouseStartX = 0, isMouseDragging = false;
+        let pageLongPressTimer = null;
         
         // タッチイベント
         pagesContainer.addEventListener('touchstart', (e) => {
-            // ウィンドウやウィンドウヘッダー内でのタッチは除外
             if (e.target.closest('.window, .window-header, .app-icon, .modal-backdrop, .minimized-icon')) return;
-            touchStartX = e.changedTouches[0].screenX; isPageSwiping = true;
+            touchStartX = e.changedTouches[0].screenX; 
+            isPageSwiping = true;
+            
+            // 長押しタイマーを開始
+            pageLongPressTimer = setTimeout(() => {
+                isPageSwiping = false; // 長押しされたらスワイプはキャンセル
+                navigator.vibrate && navigator.vibrate(50);
+                editCurrentPage();
+            }, LONG_PRESS_DELAY);
         }, { passive: true });
+
+        pagesContainer.addEventListener('touchmove', (e) => {
+            if (pageLongPressTimer) {
+                clearTimeout(pageLongPressTimer);
+                pageLongPressTimer = null;
+            }
+        }, { passive: true });
+
         pagesContainer.addEventListener('touchend', (e) => {
+            if (pageLongPressTimer) {
+                clearTimeout(pageLongPressTimer);
+                pageLongPressTimer = null;
+            }
+            
             if (!isPageSwiping) return;
             isPageSwiping = false; 
             const touchEndX = e.changedTouches[0].screenX;
@@ -999,36 +1066,52 @@
         pagesContainer.addEventListener('mousedown', (e) => {
             // ウィンドウやアプリアイコン内でのクリックは除外
             if (e.target.closest('.window, .window-header, .app-icon, .modal-backdrop, .minimized-icon')) return;
-            mouseStartX = e.clientX; 
+            
+            e.preventDefault();
+            mouseStartX = e.clientX;
             isMouseDragging = true;
             pagesContainer.style.cursor = 'grabbing';
-            e.preventDefault();
+            
+            // 長押しタイマーを開始
+            pageLongPressTimer = setTimeout(() => {
+                isMouseDragging = false; // 長押しされたらドラッグはキャンセル
+                editCurrentPage();
+            }, LONG_PRESS_DELAY);
         });
-        
+
         document.addEventListener('mousemove', (e) => {
-            if (!isMouseDragging) return;
-            const deltaX = e.clientX - mouseStartX;
-            const currentTransform = -state.currentPage * 100;
-            const newTransform = currentTransform + (deltaX / window.innerWidth) * 100;
-            pagesContainer.style.transform = `translateX(${newTransform}vw)`;
-        });
-        
-        document.addEventListener('mouseup', (e) => {
-            if (!isMouseDragging) return;
-            isMouseDragging = false;
-            pagesContainer.style.cursor = 'default';
-            
-            const deltaX = e.clientX - mouseStartX;
-            const swipeThreshold = 100; // マウスの場合は少し大きめの閾値
-            
-            if (deltaX < -swipeThreshold && state.currentPage < state.apps.length - 1) {
-                state.currentPage++;
-            } else if (deltaX > swipeThreshold && state.currentPage > 0) {
-                state.currentPage--;
+            if (pageLongPressTimer) {
+                clearTimeout(pageLongPressTimer);
+                pageLongPressTimer = null;
             }
             
-            saveData(); 
-            updatePagePosition();
+            if (!isMouseDragging) return;
+            const dx = e.clientX - mouseStartX;
+            const currentPos = -state.currentPage * window.innerWidth;
+            pagesContainer.style.transition = 'none';
+            pagesContainer.style.transform = `translateX(${currentPos + dx}px)`;
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (pageLongPressTimer) {
+                clearTimeout(pageLongPressTimer);
+                pageLongPressTimer = null;
+            }
+            
+            pagesContainer.style.cursor = 'grab';
+            if (!isMouseDragging) return;
+            isMouseDragging = false;
+            
+            const dx = e.clientX - mouseStartX;
+            const swipeThreshold = 50;
+
+            pagesContainer.style.transition = 'transform 0.3s ease-out';
+            if (dx < -swipeThreshold) {
+                if (state.currentPage < state.apps.length - 1) state.currentPage++;
+            } else if (dx > swipeThreshold) {
+                if (state.currentPage > 0) state.currentPage--;
+            }
+            saveData();
             render();
         });
         function updatePagePosition() { pagesContainer.style.transform = `translateX(-${state.currentPage * 100}vw)`; }
@@ -1097,10 +1180,22 @@
         function showConfirm(message, onConfirm) {
             const confirmModal = document.createElement('div');
             confirmModal.className = 'modal-backdrop';
-            confirmModal.innerHTML = `<div class="modal-content"><p class="mb-4">${message}</p><div class="flex justify-end gap-2"><button id="confirm-cancel" class="px-4 py-2 bg-gray-500 rounded-lg">キャンセル</button><button id="confirm-ok" class="px-4 py-2 bg-red-500 rounded-lg">OK</button></div></div>`;
+            confirmModal.innerHTML = `
+                <div class="modal-content text-center">
+                    <p class="mb-4">${message}</p>
+                    <div class="flex justify-center gap-4">
+                        <button id="confirm-cancel" class="px-4 py-2 bg-gray-600 rounded-lg">キャンセル</button>
+                        <button id="confirm-ok" class="px-4 py-2 bg-red-600 rounded-lg">OK</button>
+                    </div>
+                </div>
+            `;
             document.body.appendChild(confirmModal);
-            document.getElementById('confirm-ok').onclick = () => { onConfirm(); confirmModal.remove(); };
-            document.getElementById('confirm-cancel').onclick = () => { confirmModal.remove(); };
+
+            addClickAndTouch(document.getElementById('confirm-ok'), () => {
+                onConfirm();
+                confirmModal.remove();
+            });
+            addClickAndTouch(document.getElementById('confirm-cancel'), () => confirmModal.remove());
         }
 
         // ターミナルウィンドウを作成
@@ -1118,7 +1213,7 @@
                     <div style="display: flex; align-items: center; padding: 10px; background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.1);">
                         <span style="margin-right: 10px; color: #00ff00;">$</span>
                         <input type="text" id="terminal-input" 
-                               style="flex: 1; background: transparent; border: none; color: #00ff00; font-family: 'Courier New', monospace; font-size: 14px; outline: none;"
+                               style="flex: 1; background: transparent; border: none; color: #00ff00; font-family: 'Courier New', monospace; font-size: 14px; outline: none; -webkit-appearance: none;"
                                placeholder="Enter command...">
                     </div>
                 </div>
@@ -1130,14 +1225,22 @@
             setTimeout(() => {
                 const input = document.getElementById('terminal-input');
                 if (input) {
-                    input.focus();
-                    
                     // Enter キーでコマンド実行
                     input.addEventListener('keypress', (e) => {
                         if (e.key === 'Enter') {
+                            e.preventDefault();
                             executeCommand();
                         }
                     });
+                    
+                    // タッチで確実にフォーカス
+                    input.addEventListener('touchstart', (e) => {
+                        e.stopPropagation();
+                        setTimeout(() => input.focus(), 100);
+                    });
+                    
+                    // 初期フォーカス
+                    setTimeout(() => input.focus(), 200);
                 }
             }, 100);
         }
