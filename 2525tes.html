@@ -141,6 +141,10 @@
             display: flex; align-items: center;
             color: #ccc; font-size: 13px; height: 35px;
             touch-action: none;
+            transition: background-color 0.2s ease;
+        }
+        .window-header.inactive {
+            background: #555;
         }
         .window-controls {
             margin-left: auto; display: flex;
@@ -877,6 +881,33 @@
             });
         }
 
+        function updateWindowActiveStates() {
+            const visibleWindows = Array.from(document.querySelectorAll('.window:not(.minimized)'));
+            let highestZ = -1;
+            let topWindow = null;
+            
+            // 最前面のウィンドウを見つける
+            visibleWindows.forEach(win => {
+                const zIndex = parseInt(win.style.zIndex || 0);
+                if (zIndex > highestZ) {
+                    highestZ = zIndex;
+                    topWindow = win;
+                }
+            });
+            
+            // すべてのウィンドウのタイトルバーを更新
+            visibleWindows.forEach(win => {
+                const header = win.querySelector('.window-header');
+                if (header) {
+                    if (win === topWindow) {
+                        header.classList.remove('inactive');
+                    } else {
+                        header.classList.add('inactive');
+                    }
+                }
+            });
+        }
+
         function createWindow(title, url, customContent = null, titleIcon = null) {
             const win = document.createElement('div');
             win.className = 'window';
@@ -910,12 +941,13 @@
             updateBackButtonVisibility();
 
             // ウィンドウクリックで最前面に
-            win.addEventListener('mousedown', () => {
+            const bringToFront = () => {
                 win.style.zIndex = ++windowZIndex;
-            });
-            win.addEventListener('touchstart', () => {
-                win.style.zIndex = ++windowZIndex;
-            }, { passive: true });
+                updateWindowActiveStates();
+            };
+            
+            win.addEventListener('mousedown', bringToFront);
+            win.addEventListener('touchstart', bringToFront, { passive: true });
 
             const header = win.querySelector('.window-header');
             const closeBtn = win.querySelector('.close-btn');
@@ -926,6 +958,7 @@
                 minimizedWindows = minimizedWindows.filter(w => w.element !== win);
                 win.remove();
                 updateBackButtonVisibility();
+                updateWindowActiveStates();
             });
             
             const maxBtn = win.querySelector('.max-btn');
@@ -949,6 +982,7 @@
                 win.classList.add('minimized');
                 createMinimizedIcon(win, title, windowId, titleIcon);
                 updateBackButtonVisibility();
+                updateWindowActiveStates();
             });
             
             // ウィンドウドラッグ機能
@@ -957,7 +991,7 @@
                 e.preventDefault(); // スクロール防止
                 e.stopPropagation(); // イベント伝播防止
                 isWindowDragging = true;
-                win.style.zIndex = ++windowZIndex; // ドラッグ開始時に最前面に
+                bringToFront(); // ドラッグ開始時に最前面に
                 const clientX = e.clientX || e.touches[0].clientX; const clientY = e.clientY || e.touches[0].clientY;
                 offsetX = clientX - win.offsetLeft; offsetY = clientY - win.offsetTop;
                 header.style.cursor = 'grabbing';
@@ -1029,6 +1063,9 @@
             resizeHandle.addEventListener('touchstart', startResize, { passive: false });
             document.addEventListener('touchmove', doResize, { passive: false });
             document.addEventListener('touchend', stopResize, { passive: false });
+            
+            // 新しいウィンドウ作成後にアクティブ状態を更新
+            updateWindowActiveStates();
         }
 
         function createMinimizedIcon(windowElement, title, windowId, iconClass) {
@@ -1051,6 +1088,7 @@
                 minIcon.remove();
                 minimizedWindows = minimizedWindows.filter(w => w.element !== windowElement);
                 updateBackButtonVisibility();
+                updateWindowActiveStates();
             });
             
             document.body.appendChild(minIcon);
@@ -1073,11 +1111,20 @@
                 const browserFrame = topWindow.querySelector('#browser-frame');
                 if (browserFrame) {
                     try {
+                        // 同一オリジンかどうかをチェック
+                        const currentUrl = browserFrame.contentWindow.location.href;
                         browserFrame.contentWindow.history.back();
                         return;
                     } catch (e) {
-                        showToast('このページでは戻る操作はサポートされていません');
-                        return;
+                        // クロスオリジン制限またはhistory.back()がサポートされていない場合
+                        try {
+                            // 代替手段: postMessageを使用
+                            browserFrame.contentWindow.postMessage({type: 'history_back'}, '*');
+                            return;
+                        } catch (e2) {
+                            showToast('このページでは戻る操作はサポートされていません');
+                            return;
+                        }
                     }
                 }
                 
@@ -1085,11 +1132,20 @@
                 const iframe = topWindow.querySelector('iframe');
                 if (iframe) {
                     try {
+                        // 同一オリジンかどうかをチェック
+                        const currentUrl = iframe.contentWindow.location.href;
                         iframe.contentWindow.history.back();
                         return;
                     } catch (e) {
-                        showToast('このページでは戻る操作はサポートされていません');
-                        return;
+                        // クロスオリジン制限またはhistory.back()がサポートされていない場合
+                        try {
+                            // 代替手段: postMessageを使用
+                            iframe.contentWindow.postMessage({type: 'history_back'}, '*');
+                            return;
+                        } catch (e2) {
+                            showToast('このページでは戻る操作はサポートされていません');
+                            return;
+                        }
                     }
                 }
                 
@@ -1414,6 +1470,17 @@ Built with HTML, CSS, and JavaScript.`;
             // 自動スクロール
             output.scrollTop = output.scrollHeight;
         }
+        
+        // postMessageイベントリスナーを追加（iframe内のhistory.back()をサポート）
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'history_back') {
+                try {
+                    window.history.back();
+                } catch (e) {
+                    console.log('history.back() failed:', e);
+                }
+            }
+        });
         
         function init() { loadData(); render(); }
         init();
