@@ -1516,10 +1516,10 @@
             
             switch (position) {
                 case 'top':
-                    window.style.top = 'var(--safe-area-inset-top)';
+                    window.style.top = 'env(safe-area-inset-top, 20px)';
                     window.style.left = '0px';
                     window.style.width = '100vw';
-                    window.style.height = 'calc(50vh - var(--safe-area-inset-top))';
+                    window.style.height = 'calc(50vh - env(safe-area-inset-top, 20px))';
                     break;
                 case 'bottom':
                     window.style.top = '50vh';
@@ -1528,16 +1528,16 @@
                     window.style.height = '50vh';
                     break;
                 case 'left':
-                    window.style.top = 'var(--safe-area-inset-top)';
+                    window.style.top = 'env(safe-area-inset-top, 20px)';
                     window.style.left = '0px';
                     window.style.width = '50vw';
-                    window.style.height = 'calc(100vh - var(--safe-area-inset-top))';
+                    window.style.height = 'calc(100vh - env(safe-area-inset-top, 20px))';
                     break;
                 case 'right':
-                    window.style.top = 'var(--safe-area-inset-top)';
+                    window.style.top = 'env(safe-area-inset-top, 20px)';
                     window.style.left = '50vw';
                     window.style.width = '50vw';
-                    window.style.height = 'calc(100vh - var(--safe-area-inset-top))';
+                    window.style.height = 'calc(100vh - env(safe-area-inset-top, 20px))';
                     break;
             }
             
