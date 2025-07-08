@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自作MOD開発状況チェッカー (pitan76)</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" xintegrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
+    <!-- Google Fonts: Inter & Noto Sans JP -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* カスタムスタイル */
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .header {
+            background-color: #ffffff;
+            padding: 2rem 0;
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 2rem;
+        }
+        .controls {
+            background-color: #ffffff;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.05);
+        }
+        .table-responsive {
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+        .table thead th {
+            background-color: #343a40;
+            color: #ffffff;
+            border-bottom: none;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .table tbody tr:hover {
+            background-color: #e9ecef;
+        }
+        .badge {
+            font-size: 0.8rem;
+            padding: 0.4em 0.7em;
+            margin-bottom: 0.3rem;
+            display: inline-block;
+        }
+        .loader-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            gap: 1rem;
+        }
+        .mod-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 0.5rem;
+            margin-right: 1rem;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        .mod-title {
+            font-weight: 500;
+            color: #212529;
+            text-decoration: none;
+        }
+        .mod-title:hover {
+            text-decoration: underline;
+        }
+        .platform-links a {
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="container">
+            <h1 class="display-5">自作MOD開発状況チェッカー</h1>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 操作エリア -->
+        <div class="controls">
+            <div class="mb-3">
+                <label for="curseforge-ids" class="form-label fw-bold">CurseForge プロジェクトID</label>
+                <textarea class="form-control" id="curseforge-ids" rows="3" placeholder="例: 960741, 954838, ..."></textarea>
+                <div class="form-text">CurseForgeの各Modページ右側にある「Project ID」を入力してください。入力したIDはブラウザに保存されます。</div>
+            </div>
+            <button id="update-btn" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+                </svg>
+                表示を更新
+            </button>
+        </div>
+
+        <!-- ローディングスピナー -->
+        <div id="loading" class="loader-container">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p id="loading-status" class="text-muted"></p>
+        </div>
+
+        <!-- エラーメッセージ表示エリア -->
+        <div id="error-message" class="alert alert-danger d-none" role="alert"></div>
+
+        <!-- Mod情報を表示するテーブル -->
+        <div id="mod-table-container" class="table-responsive d-none">
+            <table class="table table-striped table-hover align-middle">
+                <thead class="thead-dark">
+                    <tr>
+                        <th scope="col">Mod</th>
+                        <th scope="col">プラットフォーム</th>
+                        <th scope="col">対応バージョン</th>
+                        <th scope="col">対応Mod Loader</th>
+                        <th scope="col">ソース</th>
+                    </tr>
+                </thead>
+                <tbody id="mod-list">
+                    <!-- JavaScriptによってMod情報がここに挿入されます -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- 定数定義 & DOM要素取得 ---
+            const MODRINTH_USER = 'pitan76';
+            const STORAGE_KEY = 'pitan76_curseforge_ids';
+            const CF_API_BASE = 'https://api.cfwidget.com/'; // cfwidget APIのベースURL
+
+            const loadingSpinner = document.getElementById('loading');
+            const loadingStatus = document.getElementById('loading-status');
+            const modTableContainer = document.getElementById('mod-table-container');
+            const modTbody = document.getElementById('mod-list');
+            const errorMessageDiv = document.getElementById('error-message');
+            const curseforgeIdsInput = document.getElementById('curseforge-ids');
+            const updateBtn = document.getElementById('update-btn');
+
+            // --- ヘルパー関数 (変更なし) ---
+            const parseVersionToArray = (v) => {
+                const match = v.match(/^(\d+)\.(\d+)(?:\.(\d+))?$/);
+                if (!match) return null;
+                const [, major, minor, patch] = match;
+                return [Number(major), Number(minor), Number(patch) || 0];
+            };
+            const compareVersionsDesc = (v1, v2) => {
+                const p1 = parseVersionToArray(v1); const p2 = parseVersionToArray(v2);
+                if (!p1 && !p2) return v2.localeCompare(v1);
+                if (!p1) return 1; if (!p2) return -1;
+                for (let i = 0; i < 3; i++) {
+                    if (p1[i] !== p2[i]) return p2[i] - p1[i];
+                }
+                return 0;
+            };
+            const formatVersionRanges = (versions) => {
+                if (!versions || versions.length === 0) return [];
+                const sorted = [...new Set(versions)].filter(parseVersionToArray).sort(compareVersionsDesc);
+                if (sorted.length === 0) return [];
+                const finalRanges = []; let i = 0;
+                while (i < sorted.length) {
+                    const rangeStart = sorted[i]; let rangeEnd = rangeStart; let k = i;
+                    while (k + 1 < sorted.length) {
+                        const p1 = parseVersionToArray(sorted[k]); const p2 = parseVersionToArray(sorted[k + 1]);
+                        if (p1 && p2 && p1[0] === p2[0] && p1[1] === p2[1] && p1[2] === p2[2] + 1) {
+                            rangeEnd = sorted[k + 1]; k++;
+                        } else { break; }
+                    }
+                    if (rangeStart === rangeEnd) { finalRanges.push(rangeStart); } else { finalRanges.push(`${rangeEnd} - ${rangeStart}`); }
+                    i = k + 1;
+                }
+                return finalRanges;
+            };
+            const showError = (message) => {
+                errorMessageDiv.textContent = message;
+                errorMessageDiv.classList.remove('d-none');
+                loadingSpinner.classList.add('d-none');
+                modTableContainer.classList.add('d-none');
+            };
+
+            // --- データ取得関数 ---
+
+            const fetchModrinthProjects = async () => {
+                loadingStatus.textContent = 'Modrinthから取得中...';
+                try {
+                    const projectsResponse = await fetch(`https://api.modrinth.com/v2/user/${MODRINTH_USER}/projects`);
+                    if (!projectsResponse.ok) throw new Error(`Status ${projectsResponse.status}`);
+                    const projects = await projectsResponse.json();
+                    const versionPromises = projects.map(p => fetch(`https://api.modrinth.com/v2/project/${p.id}/version`).then(res => res.ok ? res.json() : []));
+                    const versionsPerProject = await Promise.all(versionPromises);
+                    return projects.map((p, i) => {
+                        const allVersions = new Set(); const allLoaders = new Set();
+                        versionsPerProject[i].forEach(v => {
+                            v.game_versions.forEach(gv => allVersions.add(gv));
+                            v.loaders.forEach(l => allLoaders.add(l));
+                        });
+                        return {
+                            id: p.slug, title: p.title, description: p.description, icon_url: p.icon_url,
+                            curseforge_url: `https://www.curseforge.com/minecraft/mc-mods/${p.slug}`,
+                            modrinth_url: `https://modrinth.com/mod/${p.slug}`,
+                            versions: [...allVersions], loaders: [...allLoaders], source: 'Modrinth'
+                        };
+                    });
+                } catch (error) {
+                    console.error('Modrinthプロジェクトの取得に失敗:', error);
+                    return [];
+                }
+            };
+
+            const fetchCurseforgeProjectsById = async () => {
+                const ids = curseforgeIdsInput.value.split(',').map(id => id.trim()).filter(Boolean);
+                if (ids.length === 0) return [];
+
+                const results = [];
+                const KNOWN_LOADERS = ['fabric', 'forge', 'quilt', 'neoforge'];
+
+                for (let i = 0; i < ids.length; i++) {
+                    const id = ids[i];
+                    loadingStatus.textContent = `CurseForgeから取得中 (${i + 1}/${ids.length}): ID ${id}`;
+                    try {
+                        const response = await fetch(`${CF_API_BASE}${id}`);
+                        if (!response.ok) throw new Error(`API response status: ${response.status}`);
+                        const data = await response.json();
+                        
+                        const versions = new Set();
+                        const loaders = new Set();
+
+                        if (data.files) {
+                            data.files.forEach(file => {
+                                file.versions.forEach(v => {
+                                    const v_lower = v.toLowerCase();
+                                    if (KNOWN_LOADERS.includes(v_lower)) {
+                                        loaders.add(v_lower);
+                                    } else {
+                                        versions.add(v);
+                                    }
+                                });
+                            });
+                        }
+                        
+                        // ★★★★★ 修正点 ★★★★★
+                        // APIがslugを返さない場合でも、プロジェクトIDを元にユニークなキーを作成する
+                        const uniqueId = data.slug || `cf-${id}`;
+
+                        results.push({
+                            id: uniqueId,
+                            title: data.title,
+                            description: data.summary,
+                            icon_url: data.thumbnail,
+                            curseforge_url: data.urls.curseforge,
+                            modrinth_url: null,
+                            versions: [...versions],
+                            loaders: [...loaders],
+                            source: 'CurseForge'
+                        });
+
+                    } catch (error) {
+                        console.warn(`CurseForgeプロジェクト(ID: ${id})の取得に失敗しました:`, error);
+                    }
+                    if (i < ids.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                    }
+                }
+                return results;
+            };
+
+            // --- メイン処理 ---
+            const fetchAndDisplayAllMods = async () => {
+                loadingSpinner.classList.remove('d-none');
+                loadingStatus.textContent = '';
+                modTableContainer.classList.add('d-none');
+                errorMessageDiv.classList.add('d-none');
+                modTbody.innerHTML = '';
+
+                localStorage.setItem(STORAGE_KEY, curseforgeIdsInput.value);
+
+                try {
+                    const [modrinthProjects, curseforgeProjects] = await Promise.all([
+                        fetchModrinthProjects(),
+                        fetchCurseforgeProjectsById()
+                    ]);
+
+                    const allProjects = new Map();
+                    modrinthProjects.forEach(p => allProjects.set(p.id, p));
+                    
+                    // CurseForgeのプロジェクトをマージまたは追加
+                    curseforgeProjects.forEach(cfProject => {
+                        // cfProject.idはユニークであることが保証されている
+                        if (allProjects.has(cfProject.id)) {
+                            // Modrinthに同じslugのプロジェクトが存在する場合 (通常は起こらないはず)
+                            const existing = allProjects.get(cfProject.id);
+                            existing.versions = [...new Set([...existing.versions, ...cfProject.versions])];
+                            existing.loaders = [...new Set([...existing.loaders, ...cfProject.loaders])];
+                            existing.source += ' & CurseForge';
+                        } else {
+                            // 新規プロジェクトとして追加
+                            allProjects.set(cfProject.id, cfProject);
+                        }
+                    });
+                    
+                    if (allProjects.size === 0) {
+                        showError("表示できるModがありません。ModrinthまたはCurseForgeのIDを確認してください。");
+                        return;
+                    }
+
+                    // テーブル描画
+                    const sortedProjects = [...allProjects.values()].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+                    sortedProjects.forEach(p => {
+                        const row = document.createElement('tr');
+                        const formattedVersions = formatVersionRanges(p.versions);
+                        const versionsHtml = formattedVersions.length > 0 ? formattedVersions.map(v => `<span class="badge bg-success">${v}</span>`).join(' ') : '<span class="badge bg-secondary">情報なし</span>';
+                        const loadersHtml = p.loaders.length > 0 ? [...new Set(p.loaders)].sort().map(l => `<span class="badge bg-primary text-capitalize">${l}</span>`).join(' ') : '<span class="badge bg-secondary">情報なし</span>';
+                        const sourceHtml = p.source.split('&').map(s => `<span class="badge ${s.trim() === 'Modrinth' ? 'bg-success' : 'bg-warning text-dark'}">${s.trim()}</span>`).join(' ');
+                        row.innerHTML = `
+                            <td><div class="d-flex align-items-center"><img src="${p.icon_url}" alt="${p.title} icon" class="mod-icon" onerror="this.src='https://placehold.co/48x48/e9ecef/6c757d?text=?';"><div><a href="${p.modrinth_url || p.curseforge_url}" target="_blank" class="mod-title">${p.title || '（名称未取得）'}</a><p class="mb-0 text-muted small d-none d-md-block">${p.description || ''}</p></div></div></td>
+                            <td class="platform-links">${p.curseforge_url ? `<a href="${p.curseforge_url}" target="_blank" class="btn btn-sm btn-outline-warning">CurseForge</a>` : ''}${p.modrinth_url ? `<a href="${p.modrinth_url}" target="_blank" class="btn btn-sm btn-outline-success">Modrinth</a>` : ''}</td>
+                            <td>${versionsHtml}</td><td>${loadersHtml}</td><td>${sourceHtml}</td>
+                        `;
+                        modTbody.appendChild(row);
+                    });
+
+                    loadingSpinner.classList.add('d-none');
+                    modTableContainer.classList.remove('d-none');
+
+                } catch (error) {
+                    console.error('Mod情報の取得・表示中にエラーが発生しました:', error);
+                    showError(`データの取得に失敗しました。時間をおいて再度お試しください。(詳細: ${error.message})`);
+                }
+            };
+
+            // --- 初期化処理 ---
+            const initialize = () => {
+                const savedIds = localStorage.getItem(STORAGE_KEY);
+                curseforgeIdsInput.value = savedIds || '1287694, 1287685, 1254556, 960741';
+                updateBtn.addEventListener('click', fetchAndDisplayAllMods);
+                fetchAndDisplayAllMods();
+            };
+
+            initialize();
+        });
+    </script>
+
+</body>
+</html>
