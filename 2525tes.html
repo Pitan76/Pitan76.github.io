@@ -82,6 +82,8 @@
             grid-template-columns: repeat(5, 1fr);
             grid-template-rows: repeat(7, 1fr);
             gap: 0.5rem; height: 100%;
+            align-items: start;
+            justify-items: center;
         }
 
         .app-icon {
@@ -89,6 +91,7 @@
             justify-content: flex-start; text-align: center;
             padding-top: 0.5rem; position: relative; touch-action: none;
             transition: all 0.2s ease;
+            width: 100%; max-width: 80px;
         }
         .app-icon.wiggle {
             animation: wiggle 0.3s ease-in-out infinite alternate;
@@ -496,6 +499,33 @@
                 handler(e);
             });
         }
+        
+        // 入力フィールド用のタッチ対応（キーボード表示用）
+        function addInputTouchSupport(inputElement) {
+            if (!inputElement) return;
+            
+            inputElement.addEventListener('touchstart', (e) => {
+                e.stopPropagation(); // 親要素への伝播を防ぐ
+                setTimeout(() => {
+                    inputElement.focus();
+                    inputElement.click();
+                }, 10);
+            }, { passive: true });
+            
+            inputElement.addEventListener('touchend', (e) => {
+                e.stopPropagation(); // 親要素への伝播を防ぐ
+                if (document.activeElement !== inputElement) {
+                    setTimeout(() => {
+                        inputElement.focus();
+                    }, 10);
+                }
+            }, { passive: true });
+            
+            inputElement.addEventListener('click', (e) => {
+                e.stopPropagation(); // 親要素への伝播を防ぐ
+                setTimeout(() => inputElement.focus(), 10);
+            });
+        }
 
         const defaultApps = [
             [
@@ -800,6 +830,14 @@
             modal.appendChild(editModal);
             document.body.appendChild(modal);
             
+            // 入力欄にタッチサポートを追加
+            setTimeout(() => {
+                addInputTouchSupport(document.getElementById('edit-name'));
+                addInputTouchSupport(document.getElementById('edit-url'));
+                addInputTouchSupport(document.getElementById('edit-icon'));
+                addInputTouchSupport(document.getElementById('edit-custom-image'));
+            }, 10);
+            
             // イベントリスナーを追加
             addClickAndTouch(editModal.querySelector('.cancel-btn'), closeEditModal);
             addClickAndTouch(editModal.querySelector('.delete-btn'), () => deleteApp(pageIndex, appIndex, location));
@@ -1076,6 +1114,10 @@
             noteTitle.addEventListener('input', scheduleAutoSave);
             noteContent.addEventListener('input', scheduleAutoSave);
             
+            // 入力欄にタッチサポートを追加
+            addInputTouchSupport(noteTitle);
+            addInputTouchSupport(noteContent);
+            
             // 初期化
             updateNotesList();
             
@@ -1148,10 +1190,7 @@
                     }
                     
                     // タッチで確実にフォーカス
-                    urlInput.addEventListener('touchstart', (e) => {
-                        e.stopPropagation();
-                        setTimeout(() => urlInput.focus(), 100);
-                    });
+                    addInputTouchSupport(urlInput);
                     
                     // ブラウザフレームのtarget="_blank"を無効化
                     browserFrame.addEventListener('load', () => {
@@ -1385,6 +1424,14 @@
             addAppModal.innerHTML = '';
             addAppModal.appendChild(addModalContent);
             addAppModal.classList.remove('hidden');
+            
+            // 入力欄にタッチサポートを追加
+            setTimeout(() => {
+                addInputTouchSupport(document.getElementById('appName'));
+                addInputTouchSupport(document.getElementById('appUrl'));
+                addInputTouchSupport(document.getElementById('appIcon'));
+                addInputTouchSupport(document.getElementById('appCustomImage'));
+            }, 10);
 
             addClickAndTouch(document.getElementById('cancel-add-app'), () => addAppModal.classList.add('hidden'));
             addClickAndTouch(document.getElementById('confirm-add-app'), () => {
@@ -1423,7 +1470,7 @@
         }
         
         function getSnapZoneAtPosition(x, y) {
-            const threshold = 30; // スナップ判定の閾値（ピクセル）
+            const threshold = 50; // スナップ判定の閾値（ピクセル）を増加
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
             const safeAreaTop = 20; // ステータスバー分
@@ -2145,10 +2192,7 @@
                     });
                     
                     // タッチで確実にフォーカス
-                    input.addEventListener('touchstart', (e) => {
-                        e.stopPropagation();
-                        setTimeout(() => input.focus(), 100);
-                    });
+                    addInputTouchSupport(input);
                     
                     // 初期フォーカス
                     setTimeout(() => input.focus(), 200);
