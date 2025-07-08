@@ -297,6 +297,7 @@
         let isDragging = false; // ドラッグ中かどうかのフラグ
         let pointerDownTime = 0; // マウス/タッチ開始時間
         let windowZIndex = 1000;
+        let minimizedWindows = []; // 最小化されたウィンドウを管理
         
         // CORS回避用のプロキシサービス
         const corsProxies = [
@@ -788,6 +789,45 @@
                         setTimeout(() => urlInput.focus(), 100);
                     });
                     
+                    // ブラウザフレームのtarget="_blank"を無効化
+                    browserFrame.addEventListener('load', () => {
+                        try {
+                            const iframeDoc = browserFrame.contentDocument || browserFrame.contentWindow.document;
+                            
+                            // すべてのリンクのtarget="_blank"を無効化
+                            const links = iframeDoc.querySelectorAll('a[target="_blank"]');
+                            links.forEach(link => {
+                                link.removeAttribute('target');
+                            });
+                            
+                            // 新しく追加されるリンクも監視
+                            const observer = new MutationObserver(mutations => {
+                                mutations.forEach(mutation => {
+                                    if (mutation.type === 'childList') {
+                                        mutation.addedNodes.forEach(node => {
+                                            if (node.nodeType === Node.ELEMENT_NODE) {
+                                                const newLinks = node.querySelectorAll ? node.querySelectorAll('a[target="_blank"]') : [];
+                                                newLinks.forEach(link => {
+                                                    link.removeAttribute('target');
+                                                });
+                                                if (node.tagName === 'A' && node.hasAttribute('target')) {
+                                                    node.removeAttribute('target');
+                                                }
+                                            }
+                                        });
+                                    }
+                                });
+                            });
+                            
+                            observer.observe(iframeDoc.body, {
+                                childList: true,
+                                subtree: true
+                            });
+                        } catch (e) {
+                            // クロスオリジン制限でアクセスできない場合は無視
+                        }
+                    });
+                    
                     // ウィンドウ表示時にフォーカス
                     setTimeout(() => urlInput.focus(), 200);
                 }
@@ -826,6 +866,44 @@
                 // 読み込み完了後にボタンを復元
                 iframe.onload = () => {
                     clearTimeout(corsErrorTimeout);
+                    
+                    // target="_blank"を無効化
+                    try {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        
+                        // すべてのリンクのtarget="_blank"を無効化
+                        const links = iframeDoc.querySelectorAll('a[target="_blank"]');
+                        links.forEach(link => {
+                            link.removeAttribute('target');
+                        });
+                        
+                        // 新しく追加されるリンクも監視
+                        const observer = new MutationObserver(mutations => {
+                            mutations.forEach(mutation => {
+                                if (mutation.type === 'childList') {
+                                    mutation.addedNodes.forEach(node => {
+                                        if (node.nodeType === Node.ELEMENT_NODE) {
+                                            const newLinks = node.querySelectorAll ? node.querySelectorAll('a[target="_blank"]') : [];
+                                            newLinks.forEach(link => {
+                                                link.removeAttribute('target');
+                                            });
+                                            if (node.tagName === 'A' && node.hasAttribute('target')) {
+                                                node.removeAttribute('target');
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        });
+                        
+                        observer.observe(iframeDoc.body, {
+                            childList: true,
+                            subtree: true
+                        });
+                    } catch (e) {
+                        // クロスオリジン制限でアクセスできない場合は無視
+                    }
+                    
                     if (navBtn) {
                         navBtn.textContent = '移動';
                         navBtn.disabled = false;
@@ -1005,8 +1083,19 @@
                 contentHTML = `<iframe id="${iframeId}" class="window-content" src="${url}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>`;
             }
             
-            // タイトルアイコンの表示
-            const iconHTML = titleIcon ? `<i class="${titleIcon}" style="margin-right: 8px; font-size: 14px;"></i>` : '';
+            // タイトルアイコンの表示（faviconの場合は動的に取得）
+            let iconHTML = '';
+            if (titleIcon === 'favicon' && url) {
+                try {
+                    const domain = new URL(url).hostname;
+                    const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
+                    iconHTML = `<img src="${faviconUrl}" style="margin-right: 8px; width: 16px; height: 16px;" onerror="this.style.display='none';">`;
+                } catch (e) {
+                    iconHTML = '<i class="fa-solid fa-globe" style="margin-right: 8px; font-size: 14px;"></i>';
+                }
+            } else if (titleIcon) {
+                iconHTML = `<i class="${titleIcon}" style="margin-right: 8px; font-size: 14px;"></i>`;
+            }
             
             win.innerHTML = `
                 <div class="window-header">
@@ -1021,19 +1110,64 @@
                 <div class="resize-handle"><i class="fa-solid fa-expand"></i></div>`;
             appRoot.appendChild(win);
 
-            // iframeのCORSエラー検出とプロキシ適用
+            // iframeのCORSエラー検出とプロキシ適用、および target="_blank" 無効化
             if (!customContent && url) {
                 setTimeout(() => {
                     const iframe = document.getElementById(iframeId);
                     if (iframe) {
+                        // target="_blank" を無効化するスタイルを追加
+                        iframe.onload = () => {
+                            try {
+                                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                                const style = iframeDoc.createElement('style');
+                                style.textContent = `
+                                    * {
+                                        -webkit-user-select: auto !important;
+                                        -moz-user-select: auto !important;
+                                        -ms-user-select: auto !important;
+                                        user-select: auto !important;
+                                    }
+                                `;
+                                iframeDoc.head.appendChild(style);
+                                
+                                // すべてのリンクのtarget="_blank"を無効化
+                                const links = iframeDoc.querySelectorAll('a[target="_blank"]');
+                                links.forEach(link => {
+                                    link.removeAttribute('target');
+                                });
+                                
+                                // 新しく追加されるリンクも監視
+                                const observer = new MutationObserver(mutations => {
+                                    mutations.forEach(mutation => {
+                                        if (mutation.type === 'childList') {
+                                            mutation.addedNodes.forEach(node => {
+                                                if (node.nodeType === Node.ELEMENT_NODE) {
+                                                    const newLinks = node.querySelectorAll ? node.querySelectorAll('a[target="_blank"]') : [];
+                                                    newLinks.forEach(link => {
+                                                        link.removeAttribute('target');
+                                                    });
+                                                    if (node.tagName === 'A' && node.hasAttribute('target')) {
+                                                        node.removeAttribute('target');
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    });
+                                });
+                                
+                                observer.observe(iframeDoc.body, {
+                                    childList: true,
+                                    subtree: true
+                                });
+                            } catch (e) {
+                                // クロスオリジン制限でアクセスできない場合は無視
+                            }
+                        };
+                        
                         // CORS エラーが発生した場合の検出用タイムアウト
                         let corsErrorTimeout = setTimeout(() => {
                             loadWithCorsProxy(iframe, url);
                         }, 5000);
-                        
-                        iframe.onload = () => {
-                            clearTimeout(corsErrorTimeout);
-                        };
                         
                         iframe.onerror = () => {
                             clearTimeout(corsErrorTimeout);
@@ -1214,8 +1348,6 @@
                 const browserFrame = topWindow.querySelector('#browser-frame');
                 if (browserFrame) {
                     try {
-                        // 同一オリジンかどうかをチェック
-                        const currentUrl = browserFrame.contentWindow.location.href;
                         browserFrame.contentWindow.history.back();
                         return;
                     } catch (e) {
@@ -1235,8 +1367,6 @@
                 const iframe = topWindow.querySelector('iframe');
                 if (iframe) {
                     try {
-                        // 同一オリジンかどうかをチェック
-                        const currentUrl = iframe.contentWindow.location.href;
                         iframe.contentWindow.history.back();
                         return;
                     } catch (e) {
