@@ -1625,6 +1625,15 @@
                 setTimeout(() => {
                     const iframe = document.getElementById(iframeId);
                     if (iframe) {
+                        // iframe要素自体にクリック/タッチイベントを追加（前面表示用）
+                        iframe.addEventListener('mousedown', bringToFront);
+                        iframe.addEventListener('touchstart', bringToFront, { passive: true });
+                        iframe.addEventListener('click', bringToFront);
+                        iframe.addEventListener('touchend', (e) => {
+                            e.preventDefault();
+                            bringToFront();
+                        });
+                        
                         // target="_blank" を無効化するスタイルを追加
                         iframe.onload = () => {
                             try {
