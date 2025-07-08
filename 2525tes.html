@@ -20,9 +20,15 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
         
-        body {
+        html, body {
             font-family: 'Inter', sans-serif;
             overscroll-behavior: none; 
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
             user-select: none; /* ホームスクリーンでのテキスト選択を無効化 */
             -webkit-user-select: none;
             -moz-user-select: none;
@@ -32,6 +38,26 @@
             padding-bottom: env(safe-area-inset-bottom);
             padding-left: env(safe-area-inset-left);
             padding-right: env(safe-area-inset-right);
+            /* 追加のスクロール防止 */
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: none;
+            overscroll-behavior-y: none;
+            -webkit-overscroll-behavior: none;
+            -ms-scroll-chaining: none;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* さらなるスクロール防止 */
+        html::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* すべてのスクロール可能要素のスクロール防止 */
+        * {
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: none;
         }
 
         #wallpaper {
@@ -269,7 +295,7 @@
         }
     </style>
 </head>
-<body class="bg-black overflow-hidden h-screen w-screen">
+<body class="bg-black overflow-hidden h-screen w-screen fixed inset-0" style="overscroll-behavior: none; -webkit-overflow-scrolling: touch;">
 
     <div id="wallpaper"></div>
     <div id="app-root" class="h-full w-full relative">
@@ -284,7 +310,47 @@
     <input type="file" id="wallpaper-input" class="hidden" accept="image/*">
 
     <script>
+        // スクロール防止を強化
+        function preventScroll() {
+            // CSS設定で不十分な場合に備えて、JSでも直接設定
+            document.documentElement.style.overflow = 'hidden';
+            document.documentElement.style.position = 'fixed';
+            document.documentElement.style.width = '100%';
+            document.documentElement.style.height = '100%';
+            document.documentElement.style.overscrollBehavior = 'none';
+            
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+            document.body.style.height = '100%';
+            document.body.style.overscrollBehavior = 'none';
+            document.body.style.margin = '0';
+            document.body.style.padding = '0';
+            
+            // タッチイベントでのスクロール防止
+            document.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+            
+            // マウスホイールでのスクロール防止
+            document.addEventListener('wheel', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+        }
+
+        // 初期化時にスクロール防止を適用
+        preventScroll();
+
+        // 画面サイズ変更時にも再設定
+        window.addEventListener('resize', preventScroll);
+
     document.addEventListener('DOMContentLoaded', () => {
+        // DOM読み込み後にも再度スクロール防止を適用
+        preventScroll();
+        
+        // 1秒後にも再度確認
+        setTimeout(preventScroll, 1000);
+        
         const wallpaperDiv = document.getElementById('wallpaper');
         const pagesContainer = document.getElementById('pages-container');
         const pageIndicator = document.getElementById('page-indicator');
@@ -382,6 +448,7 @@
                 { name: 'マップ', url: 'maps://', icon: 'fa-solid fa-map-location-dot', color: '#34A853', type: 'url_scheme'},
                 { name: '設定', url: 'settings', icon: 'fa-solid fa-gear', color: '#8e8e93', type: 'action' },
                 { name: 'ターミナル', url: 'terminal', icon: 'fa-solid fa-terminal', color: '#000000', type: 'terminal' },
+                { name: 'ノート', url: 'notes', icon: 'fa-solid fa-note-sticky', color: '#FFD700', type: 'notes' },
                 { name: 'WikiChree.COM', url: 'https://wikichree.com/', icon: 'favicon', color: '#12126A', windowed: true, type: 'web' },
                 { name: 'pitq docs', url: 'https://pitan76.github.io/docs/', icon: 'fa-solid fa-book', color: '#FF6B35', windowed: true, type: 'web' },
                 { name: 'カルノー図', url: 'https://pitan76.github.io/docs/2025-07-07_%E3%82%AB%E3%83%AB%E3%83%8E%E3%83%BC%E5%9B%B3.html', icon: 'fa-solid fa-graph', color: '#FF6B35', windowed: true, type: 'web' },
@@ -633,6 +700,9 @@
             if (app.type === 'terminal') {
                 createTerminalWindow(); return;
             }
+            if (app.type === 'notes') {
+                createNotesWindow(); return;
+            }
             if (app.type === 'web' && app.windowed) {
                 createWindow(app.name, app.url, null, app.icon);
                 return;
@@ -732,6 +802,234 @@
             });
         }
         
+        // ノートウィンドウを作成
+        function createNotesWindow() {
+            const notesContent = `
+                <div style="display: flex; flex-direction: column; height: 100%; background: #1e1e1e;">
+                    <div style="display: flex; align-items: center; padding: 10px; background: rgba(0,0,0,0.1); border-bottom: 1px solid rgba(255,255,255,0.1); gap: 10px;">
+                        <button id="new-note-btn" style="padding: 8px 12px; background: #007AFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">新規</button>
+                        <button id="save-note-btn" style="padding: 8px 12px; background: #28A745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">保存</button>
+                        <button id="delete-note-btn" style="padding: 8px 12px; background: #DC3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">削除</button>
+                        <select id="note-selector" style="padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 5px; font-size: 14px; min-width: 150px;">
+                            <option value="">新規ノート</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; flex: 1; overflow: hidden;">
+                        <div style="width: 250px; background: #2a2a2a; border-right: 1px solid rgba(255,255,255,0.1); overflow-y: auto;">
+                            <div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <h3 style="margin: 0; color: white; font-size: 16px;">ノート一覧</h3>
+                            </div>
+                            <div id="notes-list" style="padding: 5px;"></div>
+                        </div>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            <div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <input type="text" id="note-title" placeholder="ノートタイトル" 
+                                       style="width: 100%; padding: 8px; border: none; border-radius: 5px; background: #333; color: white; font-size: 16px; font-weight: bold;">
+                            </div>
+                            <textarea id="note-content" placeholder="ここにノートを書いてください..."
+                                      style="flex: 1; border: none; background: #1e1e1e; color: white; padding: 15px; font-size: 14px; font-family: 'Inter', sans-serif; resize: none; outline: none; line-height: 1.6;"></textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            createWindow('ノート', '', notesContent, 'fa-solid fa-note-sticky');
+            
+            // ノート機能の初期化
+            setTimeout(() => {
+                initNotesApp();
+            }, 100);
+        }
+
+        // ノートアプリの初期化
+        function initNotesApp() {
+            const noteTitle = document.getElementById('note-title');
+            const noteContent = document.getElementById('note-content');
+            const noteSelector = document.getElementById('note-selector');
+            const notesList = document.getElementById('notes-list');
+            const newNoteBtn = document.getElementById('new-note-btn');
+            const saveNoteBtn = document.getElementById('save-note-btn');
+            const deleteNoteBtn = document.getElementById('delete-note-btn');
+            
+            if (!noteTitle || !noteContent) return;
+            
+            let currentNoteId = null;
+            let notes = loadNotes();
+            
+            // ノートを読み込む
+            function loadNotes() {
+                try {
+                    const saved = localStorage.getItem('notes_data');
+                    return saved ? JSON.parse(saved) : {};
+                } catch (e) {
+                    return {};
+                }
+            }
+            
+            // ノートを保存する
+            function saveNotes() {
+                try {
+                    localStorage.setItem('notes_data', JSON.stringify(notes));
+                } catch (e) {
+                    showToast('ノートの保存に失敗しました');
+                }
+            }
+            
+            // ノート一覧を更新
+            function updateNotesList() {
+                notesList.innerHTML = '';
+                noteSelector.innerHTML = '<option value="">新規ノート</option>';
+                
+                const noteIds = Object.keys(notes).sort((a, b) => notes[b].updatedAt - notes[a].updatedAt);
+                
+                noteIds.forEach(noteId => {
+                    const note = notes[noteId];
+                    
+                    // リストアイテム
+                    const listItem = document.createElement('div');
+                    listItem.style.cssText = `
+                        padding: 10px; margin: 5px; border-radius: 5px; cursor: pointer;
+                        background: ${currentNoteId === noteId ? '#007AFF' : '#3a3a3a'};
+                        color: white; border: 1px solid rgba(255,255,255,0.1);
+                        transition: background 0.2s;
+                    `;
+                    listItem.innerHTML = `
+                        <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            ${note.title || '無題のノート'}
+                        </div>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            ${note.content ? note.content.substring(0, 50) + '...' : ''}
+                        </div>
+                        <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 5px;">
+                            ${new Date(note.updatedAt).toLocaleString()}
+                        </div>
+                    `;
+                    
+                    addClickAndTouch(listItem, () => loadNote(noteId));
+                    notesList.appendChild(listItem);
+                    
+                    // セレクターにも追加
+                    const option = document.createElement('option');
+                    option.value = noteId;
+                    option.textContent = note.title || '無題のノート';
+                    noteSelector.appendChild(option);
+                });
+            }
+            
+            // ノートを読み込む
+            function loadNote(noteId) {
+                if (notes[noteId]) {
+                    currentNoteId = noteId;
+                    noteTitle.value = notes[noteId].title || '';
+                    noteContent.value = notes[noteId].content || '';
+                    noteSelector.value = noteId;
+                    updateNotesList();
+                }
+            }
+            
+            // 新規ノート
+            function createNewNote() {
+                currentNoteId = null;
+                noteTitle.value = '';
+                noteContent.value = '';
+                noteSelector.value = '';
+                updateNotesList();
+                noteTitle.focus();
+            }
+            
+            // ノートを保存
+            function saveCurrentNote() {
+                const title = noteTitle.value.trim();
+                const content = noteContent.value.trim();
+                
+                if (!title && !content) {
+                    showToast('タイトルまたは内容を入力してください');
+                    return;
+                }
+                
+                if (!currentNoteId) {
+                    currentNoteId = 'note_' + Date.now();
+                }
+                
+                notes[currentNoteId] = {
+                    title: title || '無題のノート',
+                    content: content,
+                    createdAt: notes[currentNoteId]?.createdAt || Date.now(),
+                    updatedAt: Date.now()
+                };
+                
+                saveNotes();
+                updateNotesList();
+                showToast('ノートを保存しました');
+            }
+            
+            // ノートを削除
+            function deleteCurrentNote() {
+                if (!currentNoteId) {
+                    showToast('削除するノートがありません');
+                    return;
+                }
+                
+                showConfirm('このノートを削除しますか？', () => {
+                    delete notes[currentNoteId];
+                    saveNotes();
+                    createNewNote();
+                    showToast('ノートを削除しました');
+                });
+            }
+            
+            // イベントリスナー
+            if (newNoteBtn) addClickAndTouch(newNoteBtn, createNewNote);
+            if (saveNoteBtn) addClickAndTouch(saveNoteBtn, saveCurrentNote);
+            if (deleteNoteBtn) addClickAndTouch(deleteNoteBtn, deleteCurrentNote);
+            
+            if (noteSelector) {
+                noteSelector.addEventListener('change', (e) => {
+                    if (e.target.value) {
+                        loadNote(e.target.value);
+                    } else {
+                        createNewNote();
+                    }
+                });
+            }
+            
+            // キーボードショートカット
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === 's') {
+                        e.preventDefault();
+                        saveCurrentNote();
+                    } else if (e.key === 'n') {
+                        e.preventDefault();
+                        createNewNote();
+                    }
+                }
+            });
+            
+            // 自動保存（3秒間変更がない場合）
+            let autoSaveTimer = null;
+            function scheduleAutoSave() {
+                if (autoSaveTimer) clearTimeout(autoSaveTimer);
+                autoSaveTimer = setTimeout(() => {
+                    if (currentNoteId && (noteTitle.value.trim() || noteContent.value.trim())) {
+                        saveCurrentNote();
+                    }
+                }, 3000);
+            }
+            
+            noteTitle.addEventListener('input', scheduleAutoSave);
+            noteContent.addEventListener('input', scheduleAutoSave);
+            
+            // 初期化
+            updateNotesList();
+            
+            // 最初のノートがある場合は読み込む
+            const firstNoteId = Object.keys(notes)[0];
+            if (firstNoteId) {
+                loadNote(firstNoteId);
+            }
+        }
+
         // ブラウザウィンドウを作成
         function createBrowserWindow() {
             const browserContent = `
