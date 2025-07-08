@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>確率分布インタラクティブ学習ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 日本語フォントと英語フォントの指定 */
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8fafc; /* coolGray-50 */
+        }
+        /* カスタムスタイル */
+        .card {
+            background-color: white;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); /* shadow-md */
+            transition: all 0.3s ease-in-out;
+        }
+        .card:hover {
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); /* shadow-lg */
+        }
+        .control-label {
+            min-width: 120px;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0; /* slate-200 */
+            border-radius: 9999px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover {
+            opacity: 1;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3b82f6; /* blue-500 */
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #3b82f6; /* blue-500 */
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 300px;
+            background-color: #ffffff;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0; /* slate-200 */
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900">確率分布インタラクティブ学習ツール</h1>
+            <p class="mt-4 text-lg text-slate-600">スライダーを動かして、確率分布がどのように変化するかを視覚的に学びましょう。</p>
+        </header>
+
+        <main class="space-y-12">
+            <!-- 二項分布セクション -->
+            <section id="binomial" class="card p-6 md:p-8">
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="md:col-span-1">
+                        <h2 class="text-2xl font-bold text-slate-900 mb-4">二項分布</h2>
+                        <p class="text-slate-600 leading-relaxed mb-6">
+                            コイン投げのように、結果が「成功」か「失敗」のいずれかになる試行（ベルヌーイ試行）を独立にn回繰り返したときの、成功回数の分布です。<br><br>
+                            <b>n (試行回数):</b> コインを投げる回数など。<br>
+                            <b>p (成功確率):</b> 1回の試行で成功する確率（例: 表が出る確率）。<br><br>
+                            下の「シミュレーション開始」ボタンを押すと、パチンコ玉が落ちるようなアニメーション（ガルトンボード）で分布が作られる様子を見ることができます。
+                        </p>
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-4">
+                                <label for="n-slider" class="control-label font-medium text-slate-700">試行回数 (n)</label>
+                                <input type="range" id="n-slider" min="1" max="100" value="20" class="flex-grow">
+                                <span id="n-value" class="font-mono text-blue-600 font-semibold w-10 text-center">20</span>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <label for="p-slider" class="control-label font-medium text-slate-700">成功確率 (p)</label>
+                                <input type="range" id="p-slider" min="0.05" max="0.95" step="0.01" value="0.5" class="flex-grow">
+                                <span id="p-value" class="font-mono text-blue-600 font-semibold w-10 text-center">0.50</span>
+                            </div>
+                            <button id="galton-sim-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                                シミュレーション開始
+                            </button>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <canvas id="binomialCanvas"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 正規分布セクション -->
+            <section id="normal" class="card p-6 md:p-8">
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="md:col-span-1">
+                        <h2 class="text-2xl font-bold text-slate-900 mb-4">正規分布</h2>
+                        <p class="text-slate-600 leading-relaxed mb-6">
+                            統計学で最も重要な連続型の確率分布で、平均値の周辺にデータが集まる「釣り鐘型」の曲線を描きます。自然界や社会現象に広く見られます。<br><br>
+                            <b>μ (平均):</b> 分布の中心位置を決めます。<br>
+                            <b>σ (標準偏差):</b> 分布の広がり具合（ばらつき）を決めます。値が小さいほど、カーブは鋭くなります。<br><br>
+                            二項分布の試行回数nを大きくすると、その形は正規分布に近づいていきます。これは中心極限定理として知られています。
+                        </p>
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-4">
+                                <label for="mu-slider" class="control-label font-medium text-slate-700">平均 (μ)</label>
+                                <input type="range" id="mu-slider" min="-50" max="50" step="1" value="0" class="flex-grow">
+                                <span id="mu-value" class="font-mono text-green-600 font-semibold w-10 text-center">0</span>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <label for="sigma-slider" class="control-label font-medium text-slate-700">標準偏差 (σ)</label>
+                                <input type="range" id="sigma-slider" min="1" max="50" step="1" value="10" class="flex-grow">
+                                <span id="sigma-value" class="font-mono text-green-600 font-semibold w-10 text-center">10</span>
+                            </div>
+                        </div>
+                         <div class="mt-6">
+                            <h3 class="font-bold text-slate-800 mb-2">確率計算</h3>
+                            <p class="text-sm text-slate-500 mb-3">指定した範囲 (x1 と x2 の間) の面積（確率）を計算します。</p>
+                            <div class="flex items-center space-x-2">
+                                <input type="number" id="x1-input" value="-10" class="w-full p-2 border border-slate-300 rounded-md text-center">
+                                <span class="text-slate-500">≦ X ≦</span>
+                                <input type="number" id="x2-input" value="10" class="w-full p-2 border border-slate-300 rounded-md text-center">
+                            </div>
+                            <p class="mt-3 text-center text-lg">確率: <span id="probability-value" class="font-bold text-green-600"></span></p>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <canvas id="normalCanvas"></canvas>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <footer class="text-center mt-12 py-6 border-t border-slate-200">
+            <p class="text-slate-500">確率分布の直感的な理解のために。</p>
+        </footer>
+    </div>
+
+    <script>
+    // === 初期設定とDOM要素の取得 ===
+    const nSlider = document.getElementById('n-slider');
+    const pSlider = document.getElementById('p-slider');
+    const nValue = document.getElementById('n-value');
+    const pValue = document.getElementById('p-value');
+    const binomialCanvas = document.getElementById('binomialCanvas');
+    const binomialCtx = binomialCanvas.getContext('2d');
+    const galtonBtn = document.getElementById('galton-sim-btn');
+
+    const muSlider = document.getElementById('mu-slider');
+    const sigmaSlider = document.getElementById('sigma-slider');
+    const muValue = document.getElementById('mu-value');
+    const sigmaValue = document.getElementById('sigma-value');
+    const normalCanvas = document.getElementById('normalCanvas');
+    const normalCtx = normalCanvas.getContext('2d');
+    const x1Input = document.getElementById('x1-input');
+    const x2Input = document.getElementById('x2-input');
+    const probabilityValue = document.getElementById('probability-value');
+
+    let animationFrameId;
+
+    // === ヘルパー関数 ===
+    // 階乗の計算（メモ化で高速化）
+    const memoFactorial = (() => {
+        const cache = [1];
+        return (n) => {
+            if (n < 0) return NaN;
+            if (n < cache.length) return cache[n];
+            for (let i = cache.length; i <= n; i++) {
+                cache[i] = cache[i - 1] * i;
+            }
+            return cache[n];
+        };
+    })();
+
+    // 組み合わせの計算 nCk
+    function combinations(n, k) {
+        if (k < 0 || k > n) return 0;
+        // 大きな数でのオーバーフローを避けるため、対数を使って計算することもできるが、
+        // ここでは直接計算する。nが100程度ならJavaScriptのNumberで十分。
+        return memoFactorial(n) / (memoFactorial(k) * memoFactorial(n - k));
+    }
+    
+    // キャンバスのサイズを親要素に合わせる
+    function resizeCanvas(canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+    }
+    
+    // 汎用描画関数
+    function drawAxes(ctx, width, height, padding, xMin, xMax, yMax) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#94a3b8'; // slate-400
+        ctx.lineWidth = 1;
+
+        // Y軸
+        ctx.moveTo(padding, padding);
+        ctx.lineTo(padding, height - padding);
+        // X軸
+        ctx.lineTo(width - padding, height - padding);
+        ctx.stroke();
+    }
+
+    // === 二項分布 ===
+    function getBinomialDistribution(n, p) {
+        const dist = [];
+        for (let k = 0; k <= n; k++) {
+            const prob = combinations(n, k) * Math.pow(p, k) * Math.pow(1 - p, n - k);
+            dist.push(prob);
+        }
+        return dist;
+    }
+
+    function drawBinomial(dist, highlightIndex = -1) {
+        const canvas = binomialCanvas;
+        const ctx = binomialCtx;
+        const width = canvas.width / (window.devicePixelRatio || 1);
+        const height = canvas.height / (window.devicePixelRatio || 1);
+        const padding = 40;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const n = dist.length - 1;
+        const barWidth = (width - 2 * padding) / (n + 1);
+        const maxProb = Math.max(...dist, 0.01); // 確率が0でも少し高さを確保
+        const scaleY = (height - 2 * padding) / maxProb;
+
+        drawAxes(ctx, width, height, padding, 0, n, maxProb);
+
+        dist.forEach((prob, k) => {
+            const barHeight = prob * scaleY;
+            const x = padding + k * barWidth;
+            const y = height - padding - barHeight;
+            
+            ctx.fillStyle = k === highlightIndex ? '#ef4444' : '#60a5fa'; // red-500 or blue-400
+            ctx.fillRect(x, y, barWidth * 0.8, barHeight);
+
+            // X軸のラベル (間引いて表示)
+            if (n <= 20 || k % Math.ceil(n / 10) === 0) {
+                 ctx.fillStyle = '#475569'; // slate-600
+                 ctx.textAlign = 'center';
+                 ctx.fillText(k, x + barWidth * 0.4, height - padding + 15);
+            }
+        });
+
+        // Y軸のラベル
+        ctx.fillStyle = '#475569';
+        ctx.textAlign = 'right';
+        ctx.fillText(maxProb.toFixed(2), padding - 5, padding + 5);
+        ctx.fillText('0', padding - 5, height - padding + 5);
+    }
+
+    // ガルトンボードシミュレーション
+    function animateGaltonBoard() {
+        cancelAnimationFrame(animationFrameId); // 既存のアニメーションをキャンセル
+        galtonBtn.disabled = true;
+
+        const n = parseInt(nSlider.value);
+        const p = parseFloat(pSlider.value);
+        const numBalls = 200;
+        const balls = [];
+        const bins = new Array(n + 1).fill(0);
+
+        const canvas = binomialCanvas;
+        const ctx = binomialCtx;
+        const width = canvas.width / (window.devicePixelRatio || 1);
+        const height = canvas.height / (window.devicePixelRatio || 1);
+        const pegRadius = 2;
+        const ballRadius = 4;
+        const startY = 30;
+        const rowHeight = (height - 100) / n;
+
+        for (let i = 0; i < numBalls; i++) {
+            balls.push({
+                x: width / 2,
+                y: startY - i * 10, // 少しずつずらして投入
+                vx: 0,
+                vy: 2,
+                row: 0
+            });
+        }
+
+        function drawPegs() {
+            ctx.fillStyle = '#94a3b8'; // slate-400
+            for (let i = 0; i < n; i++) {
+                const numPegsInRow = i + 1;
+                const pegSpacing = width / (numPegsInRow + 1);
+                for (let j = 0; j < numPegsInRow; j++) {
+                    const x = (j + 1) * pegSpacing;
+                    const y = startY + i * rowHeight + rowHeight;
+                    ctx.beginPath();
+                    ctx.arc(x, y, pegRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function drawBins() {
+            const binWidth = width / (n + 1);
+            const binHeight = 30;
+            const binY = height - binHeight;
+            ctx.strokeStyle = '#94a3b8';
+            for (let i = 0; i <= n + 1; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * binWidth, binY);
+                ctx.lineTo(i * binWidth, height);
+                ctx.stroke();
+            }
+        }
+        
+        function drawAnimatedBinomial() {
+             const maxCount = Math.max(...bins, 1);
+             const binWidth = width / (n + 1);
+             const scaleY = (height - 40) / maxCount;
+             
+             bins.forEach((count, i) => {
+                 const barHeight = count * scaleY * 0.2; // アニメーション中は高さを抑えめにする
+                 const x = i * binWidth;
+                 const y = height - barHeight;
+                 ctx.fillStyle = '#60a5fa';
+                 ctx.fillRect(x, y, binWidth, barHeight);
+             });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPegs();
+            // drawBins();
+            drawAnimatedBinomial();
+
+            let allDone = true;
+            balls.forEach(ball => {
+                if (ball.y < height - 30) {
+                    allDone = false;
+                    ball.y += ball.vy;
+
+                    const currentPegRowY = startY + ball.row * rowHeight + rowHeight;
+                    if (ball.y >= currentPegRowY) {
+                        ball.row++;
+                        if (ball.row <= n) {
+                            ball.x += (Math.random() < p ? 1 : -1) * (width / (ball.row + 1) / 2);
+                        }
+                    }
+                } else {
+                     if (!ball.binned) {
+                        const binIndex = Math.round(((ball.x / width) * (n + 1)));
+                        if (binIndex >= 0 && binIndex <= n) {
+                            bins[binIndex]++;
+                        }
+                        ball.binned = true;
+                     }
+                }
+                
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ball.Radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#3b82f6'; // blue-500
+                ctx.fill();
+            });
+
+            if (allDone) {
+                galtonBtn.disabled = false;
+                updateBinomialChart(); // 最終結果を描画
+                return;
+            }
+
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        animate();
+    }
+
+
+    // === 正規分布 ===
+    function normalPDF(x, mu, sigma) {
+        const sigma2 = Math.pow(sigma, 2);
+        const term1 = 1 / Math.sqrt(2 * Math.PI * sigma2);
+        const term2 = Math.exp(-Math.pow(x - mu, 2) / (2 * sigma2));
+        return term1 * term2;
+    }
+    
+    // 数値積分（シンプソン則）で面積（確率）を計算
+    function integrateNormal(mu, sigma, x1, x2) {
+        let area = 0;
+        const n = 1000; // 積分区間の分割数
+        const h = (x2 - x1) / n;
+        for (let i = 0; i < n; i++) {
+            const currentX = x1 + i * h;
+            area += (normalPDF(currentX, mu, sigma) + normalPDF(currentX + h, mu, sigma)) * h / 2;
+        }
+        return area;
+    }
+
+    function drawNormal() {
+        const canvas = normalCanvas;
+        const ctx = normalCtx;
+        const width = canvas.width / (window.devicePixelRatio || 1);
+        const height = canvas.height / (window.devicePixelRatio || 1);
+        const padding = 40;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const mu = parseFloat(muSlider.value);
+        const sigma = parseFloat(sigmaSlider.value);
+        
+        // 描画範囲を決定 (平均±4σで99.99%をカバー)
+        const xMin = mu - 4 * sigma;
+        const xMax = mu + 4 * sigma;
+        const yMax = normalPDF(mu, mu, sigma) * 1.1; // y軸の最大値に少し余裕を持たせる
+
+        drawAxes(ctx, width, height, padding, xMin, xMax, yMax);
+
+        const scaleX = (width - 2 * padding) / (xMax - xMin);
+        const scaleY = (height - 2 * padding) / yMax;
+
+        // 確率計算範囲の描画
+        const x1 = parseFloat(x1Input.value);
+        const x2 = parseFloat(x2Input.value);
+        
+        if (!isNaN(x1) && !isNaN(x2) && x1 < x2) {
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(74, 222, 128, 0.4)'; // green-400 with transparency
+            
+            const startX = padding + (x1 - xMin) * scaleX;
+            ctx.moveTo(startX, height - padding);
+
+            for (let x = x1; x <= x2; x += (xMax - xMin) / 1000) {
+                 const canvasX = padding + (x - xMin) * scaleX;
+                 const canvasY = height - padding - normalPDF(x, mu, sigma) * scaleY;
+                 ctx.lineTo(canvasX, canvasY);
+            }
+            const endX = padding + (x2 - xMin) * scaleX;
+            ctx.lineTo(endX, height - padding);
+            ctx.closePath();
+            ctx.fill();
+            
+            const prob = integrateNormal(mu, sigma, x1, x2);
+            probabilityValue.textContent = prob.toFixed(4);
+        } else {
+            probabilityValue.textContent = '---';
+        }
+
+
+        // 正規分布曲線の描画
+        ctx.beginPath();
+        ctx.strokeStyle = '#16a34a'; // green-600
+        ctx.lineWidth = 2.5;
+
+        for (let i = 0; i <= width; i++) {
+            const canvasX = i;
+            const x = (canvasX - padding) / scaleX + xMin;
+            const y = normalPDF(x, mu, sigma);
+            const canvasY = height - padding - y * scaleY;
+            
+            if (i === 0) {
+                ctx.moveTo(canvasX, canvasY);
+            } else {
+                ctx.lineTo(canvasX, canvasY);
+            }
+        }
+        ctx.stroke();
+
+        // X軸のラベル (平均と標準偏差)
+        ctx.fillStyle = '#475569';
+        ctx.textAlign = 'center';
+        // 平均 μ
+        const muX = padding + (mu - xMin) * scaleX;
+        ctx.fillText('μ=' + mu.toFixed(1), muX, height - padding + 20);
+        // μ±σ
+        const sigma1_plus_X = padding + (mu + sigma - xMin) * scaleX;
+        ctx.fillText('μ+σ', sigma1_plus_X, height - padding + 20);
+        const sigma1_minus_X = padding + (mu - sigma - xMin) * scaleX;
+        ctx.fillText('μ-σ', sigma1_minus_X, height - padding + 20);
+
+        // Y軸のラベル
+        ctx.textAlign = 'right';
+        ctx.fillText(yMax.toFixed(2), padding - 5, padding + 5);
+        ctx.fillText('0', padding - 5, height - padding + 5);
+    }
+
+    // === イベントリスナー ===
+    function updateBinomialChart() {
+        const n = parseInt(nSlider.value);
+        const p = parseFloat(pSlider.value);
+        nValue.textContent = n;
+        pValue.textContent = p.toFixed(2);
+        const dist = getBinomialDistribution(n, p);
+        drawBinomial(dist);
+    }
+
+    function updateNormalChart() {
+        muValue.textContent = muSlider.value;
+        sigmaValue.textContent = sigmaSlider.value;
+        drawNormal();
+    }
+
+    nSlider.addEventListener('input', updateBinomialChart);
+    pSlider.addEventListener('input', updateBinomialChart);
+    galtonBtn.addEventListener('click', animateGaltonBoard);
+
+    muSlider.addEventListener('input', updateNormalChart);
+    sigmaSlider.addEventListener('input', updateNormalChart);
+    x1Input.addEventListener('input', updateNormalChart);
+    x2Input.addEventListener('input', updateNormalChart);
+    
+    // === 初期化 ===
+    function init() {
+        resizeCanvas(binomialCanvas);
+        resizeCanvas(normalCanvas);
+        updateBinomialChart();
+        updateNormalChart();
+    }
+    
+    window.addEventListener('resize', init);
+    window.addEventListener('load', init);
+
+    </script>
+</body>
+</html>
