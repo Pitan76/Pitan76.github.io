@@ -9,6 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Home">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <link rel="apple-touch-icon" href="https://placehold.co/180x180/000000/FFFFFF?text=Home">
     <link rel="manifest" href="manifest.json">
 
@@ -26,6 +27,11 @@
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
+            /* PWA用のステータスバー領域対応 */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         #wallpaper {
@@ -177,13 +183,14 @@
         }
         
         .resize-handle {
-            position: absolute; width: 20px; height: 20px;
+            position: absolute; width: 30px; height: 30px;
             background: #666; border-radius: 50%;
             cursor: nw-resize; z-index: 50;
             display: flex; align-items: center; justify-content: center;
-            color: #ccc; font-size: 12px;
+            color: #ccc; font-size: 16px;
             opacity: 0.7; transition: opacity 0.2s;
-            bottom: -10px; right: -10px;
+            bottom: -15px; right: -15px;
+            touch-action: none;
         }
         .resize-handle:hover {
             opacity: 1; background: #888;
@@ -289,9 +296,63 @@
         let state = { apps: [], dockApps: [], wallpaper: 'https://source.unsplash.com/random/1080x1920?nature,water', currentPage: 0 };
         let isDragging = false; // ドラッグ中かどうかのフラグ
         let pointerDownTime = 0; // マウス/タッチ開始時間
-        let windowZIndex = 40; // ウィンドウのz-index管理
-        let minimizedWindows = []; // 最小化されたウィンドウの情報
+        let windowZIndex = 1000;
         
+        // CORS回避用のプロキシサービス
+        const corsProxies = [
+            'https://cors-anywhere.herokuapp.com/',
+            'https://thingproxy.freeboard.io/fetch/',
+            'https://api.allorigins.win/raw?url=',
+            'https://yacdn.org/proxy/',
+            'https://proxy.cors.sh/'
+        ];
+        
+        // CORSエラーを回避するためのURL変換関数
+        function getCorsProxyUrl(originalUrl, proxyIndex = 0) {
+            if (proxyIndex >= corsProxies.length) {
+                return originalUrl; // すべてのプロキシを試した場合は元のURLを返す
+            }
+            
+            const proxy = corsProxies[proxyIndex];
+            
+            // URLが既にhttp://またはhttps://で始まっている場合はそのまま使用
+            if (!originalUrl.startsWith('http://') && !originalUrl.startsWith('https://')) {
+                originalUrl = 'https://' + originalUrl;
+            }
+            
+            return proxy + encodeURIComponent(originalUrl);
+        }
+        
+        // iframeの読み込みエラーを検出してプロキシを試行する関数
+        function loadWithCorsProxy(iframe, url, proxyIndex = 0) {
+            if (proxyIndex >= corsProxies.length) {
+                showToast('このサイトにはアクセスできません（CORS制限）');
+                return;
+            }
+            
+            const proxyUrl = getCorsProxyUrl(url, proxyIndex);
+            
+            const loadHandler = () => {
+                iframe.removeEventListener('load', loadHandler);
+                iframe.removeEventListener('error', errorHandler);
+            };
+            
+            const errorHandler = () => {
+                iframe.removeEventListener('load', loadHandler);
+                iframe.removeEventListener('error', errorHandler);
+                
+                // 次のプロキシを試行
+                setTimeout(() => {
+                    loadWithCorsProxy(iframe, url, proxyIndex + 1);
+                }, 500);
+            };
+            
+            iframe.addEventListener('load', loadHandler);
+            iframe.addEventListener('error', errorHandler);
+            
+            iframe.src = proxyUrl;
+        }
+
         // 長押し・移動・編集関連の変数
         let longPressTimer = null;
         let isLongPress = false;
@@ -752,11 +813,29 @@
                     navBtn.disabled = true;
                 }
                 
+                // 最初は通常の方法で読み込みを試行
                 iframe.src = url;
                 urlInput.value = url;
                 
+                // CORS エラーが発生した場合の検出用タイムアウト
+                let corsErrorTimeout = setTimeout(() => {
+                    // 通常の読み込みが失敗した場合、プロキシを試行
+                    loadWithCorsProxy(iframe, url);
+                }, 5000);
+                
                 // 読み込み完了後にボタンを復元
                 iframe.onload = () => {
+                    clearTimeout(corsErrorTimeout);
+                    if (navBtn) {
+                        navBtn.textContent = '移動';
+                        navBtn.disabled = false;
+                    }
+                };
+                
+                iframe.onerror = () => {
+                    clearTimeout(corsErrorTimeout);
+                    // エラーが発生した場合、プロキシを試行
+                    loadWithCorsProxy(iframe, url);
                     if (navBtn) {
                         navBtn.textContent = '移動';
                         navBtn.disabled = false;
@@ -768,7 +847,7 @@
                         navBtn.textContent = '移動';
                         navBtn.disabled = false;
                     }
-                }, 3000);
+                }, 10000);
                 
             } catch (e) {
                 alert('無効なURLです');
@@ -917,9 +996,14 @@
             win.style.zIndex = ++windowZIndex; // 新しいウィンドウを最前面に
             
             // カスタムコンテンツまたはiframe
-            const contentHTML = customContent ? 
-                `<div class="window-content custom-content">${customContent}</div>` : 
-                `<iframe class="window-content" src="${url}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>`;
+            let contentHTML;
+            if (customContent) {
+                contentHTML = `<div class="window-content custom-content">${customContent}</div>`;
+            } else {
+                // iframeの場合はCORSプロキシを使用する可能性があるため、idを付与
+                const iframeId = 'iframe_' + Date.now();
+                contentHTML = `<iframe id="${iframeId}" class="window-content" src="${url}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>`;
+            }
             
             // タイトルアイコンの表示
             const iconHTML = titleIcon ? `<i class="${titleIcon}" style="margin-right: 8px; font-size: 14px;"></i>` : '';
@@ -936,6 +1020,28 @@
                 ${contentHTML}
                 <div class="resize-handle"><i class="fa-solid fa-expand"></i></div>`;
             appRoot.appendChild(win);
+
+            // iframeのCORSエラー検出とプロキシ適用
+            if (!customContent && url) {
+                setTimeout(() => {
+                    const iframe = document.getElementById(iframeId);
+                    if (iframe) {
+                        // CORS エラーが発生した場合の検出用タイムアウト
+                        let corsErrorTimeout = setTimeout(() => {
+                            loadWithCorsProxy(iframe, url);
+                        }, 5000);
+                        
+                        iframe.onload = () => {
+                            clearTimeout(corsErrorTimeout);
+                        };
+                        
+                        iframe.onerror = () => {
+                            clearTimeout(corsErrorTimeout);
+                            loadWithCorsProxy(iframe, url);
+                        };
+                    }
+                }, 100);
+            }
 
             // 戻るボタンを表示
             updateBackButtonVisibility();
@@ -958,7 +1064,6 @@
                 minimizedWindows = minimizedWindows.filter(w => w.element !== win);
                 win.remove();
                 updateBackButtonVisibility();
-                updateWindowActiveStates();
             });
             
             const maxBtn = win.querySelector('.max-btn');
@@ -982,7 +1087,6 @@
                 win.classList.add('minimized');
                 createMinimizedIcon(win, title, windowId, titleIcon);
                 updateBackButtonVisibility();
-                updateWindowActiveStates();
             });
             
             // ウィンドウドラッグ機能
@@ -1088,7 +1192,6 @@
                 minIcon.remove();
                 minimizedWindows = minimizedWindows.filter(w => w.element !== windowElement);
                 updateBackButtonVisibility();
-                updateWindowActiveStates();
             });
             
             document.body.appendChild(minIcon);
