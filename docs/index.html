@@ -110,12 +110,6 @@
                 const listItem = document.createElement('a');
                 listItem.href = `https://pitan76.github.io/docs/${name}`;
                 listItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-                
-                // PWA (standalone) モードでない場合のみtarget="_blank"を設定
-                if (window.matchMedia('(display-mode: browser)').matches) {
-                    listItem.target = '_blank';
-                    listItem.rel = 'noopener noreferrer';
-                }
 
                 const fileName = document.createElement('span');
                 fileName.textContent = name;
