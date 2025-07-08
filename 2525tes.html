@@ -352,6 +352,34 @@
         #url-input::placeholder {
             color: rgba(255, 255, 255, 0.6);
         }
+        
+        /* iframe overlay スタイル */
+        .iframe-overlay {
+            transition: background-color 0.1s ease;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        
+        .iframe-overlay.active {
+            background-color: rgba(0, 0, 0, 0.001) !important;
+            pointer-events: auto !important;
+        }
+        
+        /* iframe コンテナの改善 */
+        .window-content {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .window-content iframe {
+            display: block;
+            border: none;
+            width: 100%;
+            height: 100%;
+        }
     </style>
 </head>
 <body class="bg-black overflow-hidden h-screen w-screen fixed inset-0" style="overscroll-behavior: none; -webkit-overflow-scrolling: touch;">
@@ -489,6 +517,31 @@
         let dragClone = null;
         const LONG_PRESS_DELAY = 500; // 長押し判定時間（ms）
         const MOVE_THRESHOLD = 10; // 移動判定閾値（px）
+
+        // iframe内からのpostMessageを受信してウィンドウを前面に
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'iframe-interaction') {
+                const iframeId = event.data.iframeId;
+                const eventType = event.data.eventType;
+                const iframe = document.getElementById(iframeId);
+                
+                if (iframe) {
+                    // iframeを含むウィンドウを見つけて前面に
+                    const windowElement = iframe.closest('.window');
+                    if (windowElement) {
+                        // 現在のz-indexと比較して、必要な場合のみ更新
+                        const currentZIndex = parseInt(windowElement.style.zIndex) || 0;
+                        if (currentZIndex < windowZIndex) {
+                            windowElement.style.zIndex = ++windowZIndex;
+                            updateWindowActiveStates();
+                        }
+                        
+                        // デバッグ用（本番では削除可能）
+                        // console.log(`iframe interaction detected: ${eventType} in ${iframeId}`);
+                    }
+                }
+            }
+        });
 
         // タッチとクリック両方に対応するイベントハンドラー
         function addClickAndTouch(element, handler) {
@@ -1587,10 +1640,14 @@
             let contentHTML;
             if (customContent) {
                 contentHTML = `<div class="window-content custom-content">${customContent}</div>`;
-            } else {
-                // iframeの場合はCORSプロキシを使用する可能性があるため、idを付与
-                const iframeId = 'iframe_' + Date.now();
-                contentHTML = `<iframe id="${iframeId}" class="window-content" src="${url}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>`;
+            } else {            // iframeの場合はCORSプロキシを使用する可能性があるため、idを付与
+            const iframeId = 'iframe_' + Date.now();
+            contentHTML = `
+                <div style="position: relative; flex: 1;">
+                    <iframe id="${iframeId}" class="window-content" src="${url}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" style="width: 100%; height: 100%; border: none;"></iframe>
+                    <div id="iframe-overlay-${iframeId}" class="iframe-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; background: transparent; cursor: default;"></div>
+                </div>
+            `;
             }
             
             // タイトルアイコンの表示（faviconの場合は動的に取得）
@@ -1624,20 +1681,176 @@
             if (!customContent && url) {
                 setTimeout(() => {
                     const iframe = document.getElementById(iframeId);
-                    if (iframe) {
-                        // iframe要素自体にクリック/タッチイベントを追加（前面表示用）
-                        iframe.addEventListener('mousedown', bringToFront);
-                        iframe.addEventListener('touchstart', bringToFront, { passive: true });
-                        iframe.addEventListener('click', bringToFront);
-                        iframe.addEventListener('touchend', (e) => {
-                            e.preventDefault();
+                    const overlay = document.getElementById(`iframe-overlay-${iframeId}`);
+                    
+                    if (iframe && overlay) {
+                        // オーバーレイを使ったイベント検出の改善版
+                        let lastInteractionTime = 0;
+                        let isPointerDown = false;
+                        let overlayActivated = false;
+                        
+                        // iframe内でのマウス/タッチ操作を検出（一時的にオーバーレイを有効化）
+                        const activateOverlay = () => {
+                            if (!overlayActivated) {
+                                overlayActivated = true;
+                                overlay.classList.add('active');
+                                
+                                // 少し長めの時間後に非アクティブ化
+                                setTimeout(() => {
+                                    if (!isPointerDown) {
+                                        overlayActivated = false;
+                                        overlay.classList.remove('active');
+                                    }
+                                }, 300);
+                            }
+                        };
+                        
+                        const deactivateOverlay = () => {
+                            overlayActivated = false;
+                            overlay.classList.remove('active');
+                        };
+                        
+                        // マウス/タッチが iframe 上に来たときにオーバーレイを準備
+                        iframe.addEventListener('mouseenter', activateOverlay);
+                        iframe.addEventListener('touchstart', activateOverlay, { passive: true });
+                        iframe.addEventListener('mouseleave', () => {
+                            if (!isPointerDown) {
+                                setTimeout(deactivateOverlay, 100);
+                            }
+                        });
+                        
+                        // オーバーレイでのイベント処理
+                        overlay.addEventListener('mousedown', (e) => {
+                            e.stopPropagation();
+                            isPointerDown = true;
+                            lastInteractionTime = Date.now();
                             bringToFront();
                         });
                         
-                        // target="_blank" を無効化するスタイルを追加
+                        overlay.addEventListener('touchstart', (e) => {
+                            e.stopPropagation();
+                            isPointerDown = true;
+                            lastInteractionTime = Date.now();
+                            bringToFront();
+                        }, { passive: true });
+                        
+                        overlay.addEventListener('mouseup', () => {
+                            isPointerDown = false;
+                            setTimeout(() => {
+                                if (!isPointerDown) {
+                                    deactivateOverlay();
+                                }
+                            }, 100);
+                        });
+                        
+                        overlay.addEventListener('touchend', () => {
+                            isPointerDown = false;
+                            setTimeout(() => {
+                                if (!isPointerDown) {
+                                    deactivateOverlay();
+                                }
+                            }, 100);
+                        }, { passive: true });
+                        
+                        overlay.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            bringToFront();
+                        });
+                        
+                        // iframe要素でのフォーカス検出
+                        iframe.addEventListener('focus', bringToFront);
+                        
+                        // window全体のフォーカス検出でiframeへのフォーカス移動を監視
+                        const checkIframeFocus = () => {
+                            try {
+                                if (document.activeElement === iframe) {
+                                    bringToFront();
+                                }
+                            } catch (e) {
+                                // 無視
+                            }
+                        };
+                        
+                        // フォーカス監視を定期的に実行
+                        const focusInterval = setInterval(checkIframeFocus, 100);
+                        
+                        // ウィンドウが閉じられた際にintervalをクリア
+                        const originalRemove = win.remove;
+                        win.remove = function() {
+                            clearInterval(focusInterval);
+                            originalRemove.call(this);
+                        };
+                        
+                        // iframe要素のロード処理
                         iframe.onload = () => {
                             try {
                                 const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                                
+                                // iframe内でのクリック/タッチを検出するスクリプトを注入
+                                const script = iframeDoc.createElement('script');
+                                script.textContent = `
+                                    let iframeInteractionActive = false;
+                                    
+                                    function notifyParent(eventType) {
+                                        try {
+                                            window.parent.postMessage({
+                                                type: 'iframe-interaction',
+                                                eventType: eventType,
+                                                iframeId: '${iframeId}',
+                                                timestamp: Date.now()
+                                            }, '*');
+                                        } catch (e) {
+                                            console.log('postMessage failed:', e);
+                                        }
+                                    }
+                                    
+                                    // 複数のイベントで検出
+                                    document.addEventListener('mousedown', function(e) {
+                                        iframeInteractionActive = true;
+                                        notifyParent('mousedown');
+                                    }, true);
+                                    
+                                    document.addEventListener('touchstart', function(e) {
+                                        iframeInteractionActive = true;
+                                        notifyParent('touchstart');
+                                    }, { passive: true, capture: true });
+                                    
+                                    document.addEventListener('click', function(e) {
+                                        if (iframeInteractionActive) {
+                                            notifyParent('click');
+                                        }
+                                    }, true);
+                                    
+                                    document.addEventListener('contextmenu', function(e) {
+                                        notifyParent('contextmenu');
+                                    }, true);
+                                    
+                                    document.addEventListener('touchend', function(e) {
+                                        if (iframeInteractionActive) {
+                                            notifyParent('touchend');
+                                        }
+                                        // 短時間後にリセット
+                                        setTimeout(() => {
+                                            iframeInteractionActive = false;
+                                        }, 100);
+                                    }, { passive: true, capture: true });
+                                    
+                                    document.addEventListener('focus', function(e) {
+                                        notifyParent('focus');
+                                    }, true);
+                                    
+                                    // スクロール以外のinteractionを検出
+                                    document.addEventListener('keydown', function(e) {
+                                        notifyParent('keydown');
+                                    }, true);
+                                    
+                                    // input要素でのfocus/interactionも検出
+                                    document.addEventListener('input', function(e) {
+                                        notifyParent('input');
+                                    }, true);
+                                `;
+                                iframeDoc.head.appendChild(script);
+                                
                                 const style = iframeDoc.createElement('style');
                                 style.textContent = `
                                     * {
