@@ -380,6 +380,8 @@
                 { name: 'マップ', url: 'maps://', icon: 'fa-solid fa-map-location-dot', color: '#34A853', type: 'url_scheme'},
                 { name: '設定', url: 'settings', icon: 'fa-solid fa-gear', color: '#8e8e93', type: 'action' },
                 { name: 'ターミナル', url: 'terminal', icon: 'fa-solid fa-terminal', color: '#000000', type: 'terminal' },
+                { name: 'ノート', url: 'note', icon: 'fa-solid fa-note-sticky', color: '#FFD60A', type: 'note' },
+                { name: 'ペイント', url: 'paint', icon: 'fa-solid fa-palette', color: '#FF6B35', type: 'paint' },
                 { name: 'WikiChree.COM', url: 'https://wikichree.com/', icon: 'favicon', color: '#12126A', windowed: true, type: 'web' },
                 { name: 'pitq docs', url: 'https://pitan76.github.io/docs/', icon: 'fa-solid fa-book', color: '#FF6B35', windowed: true, type: 'web' },
                 { name: 'カルノー図', url: 'https://pitan76.github.io/docs/2025-07-07_%E3%82%AB%E3%83%AB%E3%83%8E%E3%83%BC%E5%9B%B3.html', icon: 'fa-solid fa-graph', color: '#FF6B35', windowed: true, type: 'web' },
@@ -623,6 +625,12 @@
             }
             if (app.type === 'terminal') {
                 createTerminalWindow(); return;
+            }
+            if (app.type === 'note') {
+                createNoteWindow(); return;
+            }
+            if (app.type === 'paint') {
+                createPaintWindow(); return;
             }
             if (app.type === 'web' && app.windowed) {
                 createWindow(app.name, app.url, null, app.icon);
