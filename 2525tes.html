@@ -1514,14 +1514,12 @@
         function snapWindowToZone(window, position) {
             if (!position) return;
             
-            const safeAreaTop = 20;
-            
             switch (position) {
                 case 'top':
-                    window.style.top = `${safeAreaTop}px`;
+                    window.style.top = 'var(--safe-area-inset-top)';
                     window.style.left = '0px';
                     window.style.width = '100vw';
-                    window.style.height = `calc(50vh - ${safeAreaTop / 2}px)`;
+                    window.style.height = 'calc(50vh - var(--safe-area-inset-top) / 2)';
                     break;
                 case 'bottom':
                     window.style.top = '50vh';
@@ -1530,16 +1528,16 @@
                     window.style.height = '50vh';
                     break;
                 case 'left':
-                    window.style.top = `${safeAreaTop}px`;
+                    window.style.top = 'var(--safe-area-inset-top)';
                     window.style.left = '0px';
                     window.style.width = '50vw';
-                    window.style.height = `calc(100vh - ${safeAreaTop}px)`;
+                    window.style.height = 'calc(100vh - var(--safe-area-inset-top))';
                     break;
                 case 'right':
-                    window.style.top = `${safeAreaTop}px`;
+                    window.style.top = 'var(--safe-area-inset-top)';
                     window.style.left = '50vw';
                     window.style.width = '50vw';
-                    window.style.height = `calc(100vh - ${safeAreaTop}px)`;
+                    window.style.height = 'calc(100vh - var(--safe-area-inset-top))';
                     break;
             }
             
@@ -1692,14 +1690,22 @@
             // 戻るボタンを表示
             updateBackButtonVisibility();
 
-            // ウィンドウクリックで最前面に
+            // ウィンドウクリックで最前面に（ウィンドウ全体）
             const bringToFront = () => {
                 win.style.zIndex = ++windowZIndex;
                 updateWindowActiveStates();
             };
             
+            // ウィンドウ全体をクリック/タッチで前面に
             win.addEventListener('mousedown', bringToFront);
             win.addEventListener('touchstart', bringToFront, { passive: true });
+            
+            // ウィンドウ内のすべての要素をクリック/タッチしても前面に
+            win.addEventListener('click', bringToFront);
+            win.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                bringToFront();
+            });
 
             const header = win.querySelector('.window-header');
             const closeBtn = win.querySelector('.close-btn');
