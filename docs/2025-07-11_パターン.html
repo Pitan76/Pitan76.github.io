@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文字列検索アルゴリズム可視化ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+        .char-box {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #e2e8f0;
+            font-size: 1.125rem;
+            font-weight: 600;
+            transition: all 0.3s ease-in-out;
+            background-color: white;
+        }
+        .pattern-container {
+            position: relative;
+            transition: left 0.5s ease-in-out;
+            left: 0;
+        }
+        .index-label {
+            width: 40px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        .compare { background-color: #fef08a; border-color: #facc15; }
+        .match { background-color: #d9f99d; border-color: #84cc16; }
+        .mismatch { background-color: #fecaca; border-color: #ef4444; }
+        
+        .table-highlight { background-color: #bae6fd; }
+
+        /* スピナー */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">文字列検索アルゴリズム可視化ツール</h1>
+            <p class="mt-2 text-slate-600">力任せ法、BM法、KMP法の動作をアニメーションで学習します。</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="text-input" class="block text-sm font-medium text-slate-700 mb-2">テキスト (Text)</label>
+                    <input type="text" id="text-input" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="GCTAGCTCTACGAGCATGCTAGC">
+                </div>
+                <div>
+                    <label for="pattern-input" class="block text-sm font-medium text-slate-700 mb-2">パターン (Pattern)</label>
+                    <input type="text" id="pattern-input" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="GCTAGC">
+                </div>
+            </div>
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                <div>
+                    <label for="algorithm-select" class="block text-sm font-medium text-slate-700 mb-2">アルゴリズム選択</label>
+                    <select id="algorithm-select" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+                        <option value="brute-force">力任せ法 (Brute-Force)</option>
+                        <option value="kmp">KMP法 (Knuth-Morris-Pratt)</option>
+                        <option value="bm">BM法 (Boyer-Moore)</option>
+                    </select>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button id="run-btn" class="w-full sm:w-auto flex-1 bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        <span>実行</span>
+                    </button>
+                    <button id="reset-btn" class="w-full sm:w-auto flex-1 bg-slate-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-slate-600 transition-colors flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        <span>リセット</span>
+                    </button>
+                </div>
+            </div>
+            <div class="mt-6">
+                <label for="speed-slider" class="block text-sm font-medium text-slate-700 mb-2">アニメーション速度</label>
+                <input type="range" id="speed-slider" min="100" max="1000" value="500" step="50" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+        </div>
+
+        <div class="bg-white p-4 md:p-6 rounded-2xl shadow-lg min-h-[300px]">
+            <div id="visualizer-container" class="w-full overflow-x-auto pb-4">
+                <div id="text-display" class="relative mb-4"></div>
+                <div id="pattern-display" class="relative"></div>
+            </div>
+            <div id="info-panel" class="mt-4 p-4 border-t border-slate-200">
+                <h3 class="font-bold text-lg mb-2">情報パネル</h3>
+                <div id="status-message" class="text-slate-700 font-mono">準備完了。実行ボタンを押してください。</div>
+                <div class="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    <div>比較回数: <span id="compare-count" class="font-bold">0</span></div>
+                    <div>シフト回数: <span id="shift-count" class="font-bold">0</span></div>
+                </div>
+            </div>
+            <div id="preprocessing-panel" class="mt-4 p-4 border-t border-slate-200 hidden">
+                 <h3 class="font-bold text-lg mb-2">事前計算テーブル</h3>
+                 <div id="table-container" class="overflow-x-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const textInput = document.getElementById('text-input');
+        const patternInput = document.getElementById('pattern-input');
+        const algorithmSelect = document.getElementById('algorithm-select');
+        const runBtn = document.getElementById('run-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const speedSlider = document.getElementById('speed-slider');
+
+        const textDisplay = document.getElementById('text-display');
+        const patternDisplay = document.getElementById('pattern-display');
+        const statusMessage = document.getElementById('status-message');
+        const compareCountEl = document.getElementById('compare-count');
+        const shiftCountEl = document.getElementById('shift-count');
+        
+        const preprocessingPanel = document.getElementById('preprocessing-panel');
+        const tableContainer = document.getElementById('table-container');
+
+        // State
+        let animationSpeed = 500;
+        let isRunning = false;
+        let text = '';
+        let pattern = '';
+        let compareCount = 0;
+        let shiftCount = 0;
+
+        // --- Utility Functions ---
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        const charBoxWidth = 40;
+
+        function updateSpeed() {
+            animationSpeed = 1100 - parseInt(speedSlider.value, 10);
+        }
+
+        function toggleControls(disabled) {
+            isRunning = disabled;
+            runBtn.disabled = disabled;
+            resetBtn.disabled = !disabled;
+            textInput.disabled = disabled;
+            patternInput.disabled = disabled;
+            algorithmSelect.disabled = disabled;
+            if (disabled) {
+                runBtn.innerHTML = `<div class="loader"></div><span>実行中...</span>`;
+            } else {
+                runBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg><span>実行</span>`;
+            }
+        }
+
+        function resetState() {
+            compareCount = 0;
+            shiftCount = 0;
+            compareCountEl.textContent = '0';
+            shiftCountEl.textContent = '0';
+            statusMessage.textContent = '準備完了。実行ボタンを押してください。';
+            preprocessingPanel.classList.add('hidden');
+            tableContainer.innerHTML = '';
+            setupVisualizer();
+        }
+
+        // --- Visualization Setup ---
+        function setupVisualizer() {
+            text = textInput.value;
+            pattern = patternInput.value;
+            
+            textDisplay.innerHTML = '';
+            patternDisplay.innerHTML = '';
+
+            if (!text || !pattern) return;
+
+            // Text display
+            const textCharsContainer = document.createElement('div');
+            textCharsContainer.className = 'flex';
+            const textIndicesContainer = document.createElement('div');
+            textIndicesContainer.className = 'flex';
+
+            for (let i = 0; i < text.length; i++) {
+                const charBox = document.createElement('div');
+                charBox.className = 'char-box';
+                charBox.id = `text-char-${i}`;
+                charBox.textContent = text[i];
+                textCharsContainer.appendChild(charBox);
+
+                const indexLabel = document.createElement('div');
+                indexLabel.className = 'index-label';
+                indexLabel.textContent = i;
+                textIndicesContainer.appendChild(indexLabel);
+            }
+            textDisplay.appendChild(textIndicesContainer);
+            textDisplay.appendChild(textCharsContainer);
+
+            // Pattern display
+            const patternContainer = document.createElement('div');
+            patternContainer.id = 'pattern-container';
+            patternContainer.className = 'pattern-container flex';
+            
+            const patternIndicesContainer = document.createElement('div');
+            patternIndicesContainer.className = 'flex';
+            patternIndicesContainer.style.position = 'relative';
+            patternIndicesContainer.id = 'pattern-indices-container';
+
+            for (let i = 0; i < pattern.length; i++) {
+                const charBox = document.createElement('div');
+                charBox.className = 'char-box';
+                charBox.id = `pattern-char-${i}`;
+                charBox.textContent = pattern[i];
+                patternContainer.appendChild(charBox);
+
+                const indexLabel = document.createElement('div');
+                indexLabel.className = 'index-label';
+                indexLabel.textContent = i;
+                patternIndicesContainer.appendChild(indexLabel);
+            }
+            patternDisplay.appendChild(patternIndicesContainer);
+            patternDisplay.appendChild(patternContainer);
+        }
+
+        // --- Visualization Actions ---
+        async function highlight(textIdx, patternIdx, status) {
+            const textChar = document.getElementById(`text-char-${textIdx}`);
+            const patternChar = document.getElementById(`pattern-char-${patternIdx}`);
+            if (textChar) textChar.classList.add(status);
+            if (patternChar) patternChar.classList.add(status);
+            await sleep(animationSpeed);
+        }
+
+        function removeHighlight() {
+            document.querySelectorAll('.char-box').forEach(el => {
+                el.classList.remove('compare', 'match', 'mismatch');
+            });
+        }
+        
+        async function shiftPattern(textIndex) {
+            shiftCount++;
+            shiftCountEl.textContent = shiftCount;
+            const patternContainer = document.getElementById('pattern-container');
+            const patternIndicesContainer = document.getElementById('pattern-indices-container');
+            const offset = textIndex * charBoxWidth;
+            patternContainer.style.left = `${offset}px`;
+            patternIndicesContainer.style.left = `${offset}px`;
+            await sleep(animationSpeed);
+        }
+
+        function updateStatus(message) {
+            statusMessage.innerHTML = message;
+        }
+
+        // --- Algorithm Implementations ---
+
+        // 1. Brute-Force Algorithm
+        async function bruteForceSearch() {
+            for (let i = 0; i <= text.length - pattern.length; i++) {
+                updateStatus(`テキストのインデックス ${i} から比較を開始します。`);
+                await shiftPattern(i);
+                removeHighlight();
+                let match = true;
+                for (let j = 0; j < pattern.length; j++) {
+                    compareCount++;
+                    compareCountEl.textContent = compareCount;
+                    updateStatus(`比較中: テキスト[${i+j}] ('${text[i+j]}') vs パターン[${j}] ('${pattern[j]}')`);
+                    await highlight(i + j, j, 'compare');
+                    
+                    if (text[i + j] === pattern[j]) {
+                        await highlight(i + j, j, 'match');
+                    } else {
+                        await highlight(i + j, j, 'mismatch');
+                        updateStatus(`不一致: テキスト[${i+j}] != パターン[${j}]。パターンを1つ右にずらします。`);
+                        match = false;
+                        await sleep(animationSpeed);
+                        break;
+                    }
+                }
+                if (match) {
+                    updateStatus(`<span class="font-bold text-green-600">発見！インデックス ${i} でパターンが見つかりました。</span>`);
+                    return;
+                }
+            }
+            updateStatus(`<span class="font-bold text-red-600">パターンは見つかりませんでした。</span>`);
+        }
+
+        // 2. KMP Algorithm
+        async function kmpSearch() {
+            // Preprocessing: Build the partial match table (LPS array)
+            updateStatus('KMP法: 部分一致テーブルを作成します...');
+            preprocessingPanel.classList.remove('hidden');
+            const lps = await buildLpsTable();
+            if (!lps) return; // Canceled during build
+
+            updateStatus('検索を開始します。');
+            let i = 0; // index for text
+            let j = 0; // index for pattern
+
+            while (i < text.length) {
+                if (!isRunning) return;
+                removeHighlight();
+                await shiftPattern(i - j);
+
+                compareCount++;
+                compareCountEl.textContent = compareCount;
+                updateStatus(`比較中: テキスト[${i}] ('${text[i]}') vs パターン[${j}] ('${pattern[j]}')`);
+                await highlight(i, j, 'compare');
+
+                if (text[i] === pattern[j]) {
+                    await highlight(i, j, 'match');
+                    i++;
+                    j++;
+                }
+
+                if (j === pattern.length) {
+                    updateStatus(`<span class="font-bold text-green-600">発見！インデックス ${i - j} でパターンが見つかりました。</span>`);
+                    // To find next occurrences, update j
+                    // j = lps[j - 1];
+                    return; 
+                } else if (i < text.length && text[i] !== pattern[j]) {
+                    await highlight(i, j, 'mismatch');
+                    if (j !== 0) {
+                        const shiftVal = lps[j-1];
+                        updateStatus(`不一致。テーブル[${j-1}]の値 (${shiftVal}) に基づいてパターンをシフトします。`);
+                        j = shiftVal;
+                    } else {
+                        updateStatus(`不一致。パターンの先頭なので、テキストを次に進めます。`);
+                        i++;
+                    }
+                    await sleep(animationSpeed);
+                }
+            }
+            updateStatus(`<span class="font-bold text-red-600">パターンは見つかりませんでした。</span>`);
+        }
+
+        async function buildLpsTable() {
+            const lps = Array(pattern.length).fill(0);
+            let length = 0;
+            let i = 1;
+
+            // Table HTML
+            let tableHTML = `<table class="w-full text-center border-collapse"><thead><tr>`;
+            tableHTML += `<th class="border p-2">i</th>`;
+            for(let k=0; k<pattern.length; k++) tableHTML += `<th class="border p-2">${k}</th>`;
+            tableHTML += `</tr><tr>`;
+            tableHTML += `<th class="border p-2">P[i]</th>`;
+            for(let k=0; k<pattern.length; k++) tableHTML += `<th class="border p-2 font-mono">${pattern[k]}</th>`;
+            tableHTML += `</tr></thead><tbody><tr>`;
+            tableHTML += `<td class="border p-2 font-bold">LPS[i]</td>`;
+            for(let k=0; k<pattern.length; k++) tableHTML += `<td class="border p-2 font-mono" id="lps-val-${k}">0</td>`;
+            tableHTML += `</tr></tbody></table>`;
+            tableContainer.innerHTML = tableHTML;
+
+            while (i < pattern.length) {
+                if (!isRunning) return null;
+                updateStatus(`テーブル計算中: P[${i}] ('${pattern[i]}') と P[${length}] ('${pattern[length]}') を比較`);
+                
+                document.querySelectorAll('#table-container th, #table-container td').forEach(el => el.classList.remove('table-highlight'));
+                document.querySelector(`#lps-val-${i}`).parentElement.children[i+1].classList.add('table-highlight');
+                document.querySelector(`#lps-val-${length}`).parentElement.children[length+1].classList.add('table-highlight');
+                await sleep(animationSpeed * 1.5);
+
+                if (pattern[i] === pattern[length]) {
+                    length++;
+                    lps[i] = length;
+                    document.getElementById(`lps-val-${i}`).textContent = length;
+                    i++;
+                } else {
+                    if (length !== 0) {
+                        length = lps[length - 1];
+                    } else {
+                        lps[i] = 0;
+                        i++;
+                    }
+                }
+            }
+            document.querySelectorAll('#table-container th, #table-container td').forEach(el => el.classList.remove('table-highlight'));
+            updateStatus('部分一致テーブルの作成が完了しました。');
+            await sleep(animationSpeed * 2);
+            return lps;
+        }
+
+
+        // 3. Boyer-Moore Algorithm
+        async function bmSearch() {
+            updateStatus('BM法: スキップテーブルを作成します...');
+            preprocessingPanel.classList.remove('hidden');
+            const skipTable = buildSkipTable();
+
+            let i = pattern.length - 1; // text index
+            let j = pattern.length - 1; // pattern index
+            
+            while (i < text.length) {
+                if (!isRunning) return;
+                removeHighlight();
+                const shiftAmount = i - j;
+                await shiftPattern(shiftAmount);
+                j = pattern.length - 1;
+                
+                while (j >= 0) {
+                    if (!isRunning) return;
+                    compareCount++;
+                    compareCountEl.textContent = compareCount;
+                    updateStatus(`比較中: テキスト[${i}] ('${text[i]}') vs パターン[${j}] ('${pattern[j]}')`);
+                    await highlight(i, j, 'compare');
+                    
+                    if (text[i] === pattern[j]) {
+                        await highlight(i, j, 'match');
+                        if (j === 0) {
+                            updateStatus(`<span class="font-bold text-green-600">発見！インデックス ${i} でパターンが見つかりました。</span>`);
+                            return;
+                        }
+                        i--;
+                        j--;
+                    } else {
+                        await highlight(i, j, 'mismatch');
+                        const textChar = text[i];
+                        const skip = skipTable[textChar] || pattern.length;
+                        const shift = Math.max(1, skip - (pattern.length - 1 - j));
+                        
+                        updateStatus(`不一致。テキスト文字'${textChar}'のスキップ量(${skip})に基づき、パターンを ${shift} ずらします。`);
+                        i += shift + (pattern.length - 1 - j);
+                        await sleep(animationSpeed);
+                        break;
+                    }
+                }
+            }
+            updateStatus(`<span class="font-bold text-red-600">パターンは見つかりませんでした。</span>`);
+        }
+
+        function buildSkipTable() {
+            const table = {};
+            for (let k = 0; k < pattern.length - 1; k++) {
+                table[pattern[k]] = pattern.length - 1 - k;
+            }
+
+            let tableHTML = `<p class="mb-2 text-sm">各文字がパターンの末尾からどれだけ離れているかを示します。登場しない文字はパターンの長さ(${pattern.length})分スキップします。</p>`;
+            tableHTML += `<table class="text-center border-collapse"><thead><tr>`;
+            const chars = [...new Set(text + pattern)].sort();
+            tableHTML += `<th class="border p-2">文字</th>`;
+            for(const char of chars) {
+                tableHTML += `<th class="border p-2 font-mono">${char}</th>`;
+            }
+            tableHTML += `<th class="border p-2">その他</th>`;
+            tableHTML += `</tr></thead><tbody><tr>`;
+            tableHTML += `<td class="border p-2 font-bold">スキップ量</td>`;
+            for(const char of chars) {
+                const skip = table[char] || pattern.length;
+                tableHTML += `<td class="border p-2 font-mono">${skip}</td>`;
+            }
+            tableHTML += `<td class="border p-2 font-mono">${pattern.length}</td>`;
+            tableHTML += `</tr></tbody></table>`;
+            tableContainer.innerHTML = tableHTML;
+            
+            return table;
+        }
+
+
+        // --- Main Execution ---
+        async function runAnimation() {
+            if (isRunning) return;
+            if (!textInput.value || !patternInput.value) {
+                alert("テキストとパターンの両方を入力してください。");
+                return;
+            }
+            
+            resetState();
+            toggleControls(true);
+            
+            const selectedAlgorithm = algorithmSelect.value;
+            
+            try {
+                switch (selectedAlgorithm) {
+                    case 'brute-force':
+                        await bruteForceSearch();
+                        break;
+                    case 'kmp':
+                        await kmpSearch();
+                        break;
+                    case 'bm':
+                        await bmSearch();
+                        break;
+                }
+            } catch (error) {
+                console.error("An error occurred during animation:", error);
+                updateStatus(`<span class="text-red-500">エラーが発生しました。コンソールを確認してください。</span>`);
+            } finally {
+                toggleControls(false);
+            }
+        }
+
+        // --- Event Listeners ---
+        runBtn.addEventListener('click', runAnimation);
+        resetBtn.addEventListener('click', () => {
+             toggleControls(false); // Stop any running animation
+             resetState();
+        });
+        speedSlider.addEventListener('input', updateSpeed);
+        textInput.addEventListener('input', resetState);
+        patternInput.addEventListener('input', resetState);
+        algorithmSelect.addEventListener('change', resetState);
+
+        // --- Initial Setup ---
+        window.onload = () => {
+            updateSpeed();
+            setupVisualizer();
+            resetBtn.disabled = true;
+        };
+    </script>
+</body>
+</html>
